@@ -27,7 +27,7 @@ const GuidedBody = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   requesterName: z.string().min(1).max(100).optional(),
-  contactPhone: z.string().min(1).max(20).optional(),
+  contactPhone: z.string().regex(/^\+?[0-9][0-9 -]{6,18}$/, "invalid phone number").optional(),
 });
 
 async function startRequest(doc: RequestDoc): Promise<void> {
@@ -128,6 +128,12 @@ requestsRouter.get("/requests/:id/state", asyncHandler(async (req, res) => {
 
 requestsRouter.get("/requests", asyncHandler(async (_req, res) => {
   const db = await getDb();
-  const all = await db.collection<RequestDoc>("requests").find().sort({ createdAt: -1 }).limit(50).toArray();
+  // List view never needs the callback number; it's only returned for the one request being viewed.
+  const all = await db
+    .collection<RequestDoc>("requests")
+    .find({}, { projection: { _id: 0, contactPhone: 0 } })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .toArray();
   res.json(all);
 }));

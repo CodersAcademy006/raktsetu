@@ -112,7 +112,7 @@ main {
   margin: 0 0 12px;
 }
 
-textarea, input[type="number"] {
+textarea, input {
   width: 100%;
   font: inherit;
   font-size: 0.95rem;

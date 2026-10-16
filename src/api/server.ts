@@ -3,10 +3,16 @@ import { getDb, ensureIndexes } from "../db/mongo.ts";
 import { requestsRouter } from "./requests.ts";
 import { demoRepliesRouter } from "./demo-replies.ts";
 import { nearbyRouter } from "./nearby.ts";
+import { requireAccessCode, rateLimit, securityHeaders } from "./guard.ts";
 
 const app = express();
-app.use(express.json());
+app.set("trust proxy", 1); // behind one reverse proxy (tunnel / hosting edge), so req.ip is the client
+app.disable("x-powered-by");
+app.use(securityHeaders);
+app.use(express.json({ limit: "10kb" }));
 app.use(express.static(new URL("../../apps/web", import.meta.url).pathname));
+app.post("*", rateLimit(30));
+app.use(["/requests", "/nearby"], requireAccessCode);
 app.use(requestsRouter);
 app.use(demoRepliesRouter);
 app.use(nearbyRouter);

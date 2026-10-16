@@ -1,3 +1,30 @@
+// Every server value rendered via innerHTML goes through esc(): requester
+// names, locality text and messages are user-controlled.
+const esc = (v) =>
+  String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+function getAccessCode() {
+  try { return localStorage.getItem("raktsetu.accessCode") ?? ""; } catch { return ""; }
+}
+
+// fetch wrapper for staff endpoints: attaches the deployment access code and
+// asks for it once (inline card, no dialogs) when the server says 401.
+async function api(path, options = {}) {
+  const res = await fetch(path, { ...options, headers: { ...(options.headers ?? {}), "x-access-code": getAccessCode() } });
+  if (res.status === 401) {
+    document.getElementById("access-card").hidden = false;
+    throw new Error("access code required");
+  }
+  return res;
+}
+
+document.getElementById("access-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  try { localStorage.setItem("raktsetu.accessCode", document.getElementById("access-code").value.trim()); } catch {}
+  document.getElementById("access-card").hidden = true;
+  refreshRequestList();
+});
+
 let activeRequestId = null;
 let pollTimer = null;
 let sharedLocation = null; // { lat, lng }
@@ -171,7 +198,7 @@ document.getElementById("demo-locate-btn").addEventListener("click", async () =>
 
 async function loadNearby() {
   const { lat, lng } = sharedLocation;
-  const res = await fetch(`/nearby?lat=${lat}&lng=${lng}`);
+  const res = await api(`/nearby?lat=${lat}&lng=${lng}`);
   if (!res.ok) throw new Error(`nearby fetch failed: ${res.status}`);
   const { searchedRadiusKm, bloodBanks, donorCountByGroup, totalDonors } = await res.json();
 
@@ -179,7 +206,7 @@ async function loadNearby() {
   nearbyCard.hidden = false;
 
   const pills = BLOOD_GROUPS.map(
-    (g) => `<span class="group-pill">${g} · ${donorCountByGroup[g] ?? 0}</span>`,
+    (g) => `<span class="group-pill">${esc(g)} · ${esc(donorCountByGroup[g] ?? 0)}</span>`,
   ).join("");
 
   const bankRows =
@@ -187,13 +214,13 @@ async function loadNearby() {
       ? `<div class="empty">No blood banks within ${searchedRadiusKm}km — this is exactly the gap the donor network exists for.</div>`
       : bloodBanks
           .map(
-            (b) => `<div class="nearby-row"><span>${b.name}</span><span class="sub">${b.distanceKm} km</span></div>`,
+            (b) => `<div class="nearby-row"><span>${esc(b.name)}</span><span class="sub">${esc(b.distanceKm)} km</span></div>`,
           )
           .join("");
 
   document.getElementById("nearby-summary").innerHTML = `
     <div class="sub" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-dim);margin-bottom:6px;">
-      ${totalDonors} potential donor(s) within ${searchedRadiusKm}km
+      ${esc(totalDonors)} potential donor(s) within ${searchedRadiusKm}km
     </div>
     <div style="margin-bottom:12px;">${pills}</div>
     <div class="sub" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-dim);margin-bottom:6px;">Blood banks</div>
@@ -210,7 +237,7 @@ document.getElementById("mcq-submit").addEventListener("click", async () => {
   submitBtn.textContent = "Dispatching…";
 
   try {
-    const res = await fetch("/requests", {
+    const res = await api("/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -247,7 +274,7 @@ form.addEventListener("submit", async (e) => {
   submitBtn.textContent = "Dispatching…";
 
   try {
-    const res = await fetch("/requests", {
+    const res = await api("/requests", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -271,7 +298,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 async function refreshRequestList() {
-  const res = await fetch("/requests");
+  const res = await api("/requests");
   const all = await res.json();
   if (all.length === 0) {
     requestList.className = "empty";
@@ -281,12 +308,12 @@ async function refreshRequestList() {
   requestList.className = "";
   requestList.innerHTML = all
     .map(
-      (r) => `<div class="dispatch-row" data-id="${r.requestId}" style="cursor:pointer">
+      (r) => `<div class="dispatch-row" data-id="${esc(r.requestId)}" style="cursor:pointer">
         <div class="meta">
-          <div class="name">${r.requiredBloodGroup} · ${r.unitsRequested} unit(s) · ${r.locationText}</div>
-          <div class="sub">${r.urgency} · ${new Date(r.createdAt).toLocaleTimeString()}</div>
+          <div class="name">${esc(r.requiredBloodGroup)} · ${esc(r.unitsRequested)} unit(s) · ${esc(r.locationText)}</div>
+          <div class="sub">${esc(r.urgency)} · ${new Date(r.createdAt).toLocaleTimeString()}</div>
         </div>
-        <span class="badge ${r.status}">${r.status}</span>
+        <span class="badge ${esc(r.status)}">${esc(r.status)}</span>
       </div>`,
     )
     .join("");
@@ -309,7 +336,7 @@ function startPolling() {
 
 async function poll() {
   if (!activeRequestId) return;
-  const res = await fetch(`/requests/${activeRequestId}/state`);
+  const res = await api(`/requests/${activeRequestId}/state`);
   if (!res.ok) return;
   const { request, dispatches, events, donorsById } = await res.json();
   render(request, dispatches, events, donorsById);
@@ -320,14 +347,14 @@ function render(request, dispatches, events, donorsById) {
   document.getElementById("status-summary").innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
       <div>
-        <div style="font-weight:650;">${request.requiredBloodGroup} needed near ${request.locationText}</div>
+        <div style="font-weight:650;">${esc(request.requiredBloodGroup)} needed near ${esc(request.locationText)}</div>
         <div class="sub" style="color:var(--ink-dim);font-size:0.82rem;">
-          ${request.unitsRequested} unit(s) · target ${request.targetDonorAcceptances} donor(s) ·
-          radius ${request.currentRadiusKm ? request.currentRadiusKm + " km" : "—"}
-          ${request.requesterName || request.contactPhone ? ` · ${[request.requesterName, request.contactPhone].filter(Boolean).join(" · ")}` : ""}
+          ${esc(request.unitsRequested)} unit(s) · target ${esc(request.targetDonorAcceptances)} donor(s) ·
+          radius ${request.currentRadiusKm ? esc(request.currentRadiusKm) + " km" : "—"}
+          ${request.requesterName || request.contactPhone ? ` · ${esc([request.requesterName, request.contactPhone].filter(Boolean).join(" · "))}` : ""}
         </div>
       </div>
-      <span class="badge ${request.status}">${request.status}</span>
+      <span class="badge ${esc(request.status)}">${esc(request.status)}</span>
     </div>`;
 
   const byBatch = {};
@@ -342,14 +369,14 @@ function render(request, dispatches, events, donorsById) {
           .map(
             ([batchNo, rows]) => `
         <div style="margin-top:8px;">
-          <div class="sub" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-dim);margin-bottom:4px;">Batch ${batchNo}</div>
+          <div class="sub" style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-dim);margin-bottom:4px;">Batch ${esc(batchNo)}</div>
           ${rows
             .map((d) => {
               const donor = donorsById[d.donorId] ?? { name: "Unknown", bloodGroup: "?" };
               return `<div class="dispatch-row">
                 <div class="meta">
-                  <div class="name">${donor.name} · ${donor.bloodGroup}</div>
-                  <div class="sub">${d.status}</div>
+                  <div class="name">${esc(donor.name)} · ${esc(donor.bloodGroup)}</div>
+                  <div class="sub">${esc(d.status)}</div>
                 </div>
               </div>`;
             })
@@ -366,11 +393,11 @@ function render(request, dispatches, events, donorsById) {
           .map((d) => {
             const donor = donorsById[d.donorId] ?? { name: "Unknown", bloodGroup: "?" };
             return `<div class="bubble">
-              <div style="font-weight:600;margin-bottom:4px;">${donor.name} (${donor.bloodGroup})</div>
-              <div style="margin-bottom:8px;">${d.message}</div>
+              <div style="font-weight:600;margin-bottom:4px;">${esc(donor.name)} (${esc(donor.bloodGroup)})</div>
+              <div style="margin-bottom:8px;">${esc(d.message)}</div>
               <div class="actions">
-                <button class="accept" data-donor="${d.donorId}" data-accept="true">Accept</button>
-                <button class="decline" data-donor="${d.donorId}" data-accept="false">Decline</button>
+                <button class="accept" data-donor="${esc(d.donorId)}" data-accept="true">Accept</button>
+                <button class="decline" data-donor="${esc(d.donorId)}" data-accept="false">Decline</button>
               </div>
             </div>`;
           })
@@ -379,7 +406,7 @@ function render(request, dispatches, events, donorsById) {
   document.querySelectorAll("#donor-list button").forEach((btn) => {
     btn.addEventListener("click", async () => {
       btn.closest(".bubble").querySelectorAll("button").forEach((b) => (b.disabled = true));
-      await fetch(`/requests/${activeRequestId}/respond`, {
+      await api(`/requests/${activeRequestId}/respond`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ donorId: btn.dataset.donor, accepted: btn.dataset.accept === "true" }),
@@ -392,7 +419,7 @@ function render(request, dispatches, events, donorsById) {
     .slice()
     .reverse()
     .map(
-      (e) => `<li><span class="type">${e.type}</span><span>${new Date(e.timestamp).toLocaleTimeString()}</span></li>`,
+      (e) => `<li><span class="type">${esc(e.type)}</span><span>${new Date(e.timestamp).toLocaleTimeString()}</span></li>`,
     )
     .join("");
 }

@@ -17,6 +17,14 @@
 </div>
 <main>
   <div>
+    <section class="card" id="access-card" hidden>
+      <h2>Access code</h2>
+      <form id="access-form">
+        <label for="access-code">This deployment needs the hospital access code.</label>
+        <input id="access-code" type="password" autocomplete="off" required />
+        <button class="primary" type="submit">Continue</button>
+      </form>
+    </section>
     <section class="card" id="location-card">
       <h2>Step 1 — Location</h2>
       <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.85rem;">
