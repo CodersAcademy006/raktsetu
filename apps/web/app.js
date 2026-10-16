@@ -203,6 +203,8 @@ async function loadNearby() {
 document.getElementById("mcq-submit").addEventListener("click", async () => {
   if (!sharedLocation || !mcqAnswers.bloodGroup || !mcqAnswers.units || !mcqAnswers.urgency) return;
   const targetRaw = document.getElementById("mcq-target").value;
+  const requesterName = document.getElementById("mcq-requester").value.trim();
+  const contactPhone = document.getElementById("mcq-phone").value.trim();
   const submitBtn = document.getElementById("mcq-submit");
   submitBtn.disabled = true;
   submitBtn.textContent = "Dispatching…";
@@ -218,6 +220,8 @@ document.getElementById("mcq-submit").addEventListener("click", async () => {
         lat: sharedLocation.lat,
         lng: sharedLocation.lng,
         ...(targetRaw ? { targetDonorAcceptances: Number(targetRaw) } : {}),
+        ...(requesterName ? { requesterName } : {}),
+        ...(contactPhone ? { contactPhone } : {}),
       }),
     });
     const body = await res.json();
@@ -320,6 +324,7 @@ function render(request, dispatches, events, donorsById) {
         <div class="sub" style="color:var(--ink-dim);font-size:0.82rem;">
           ${request.unitsRequested} unit(s) · target ${request.targetDonorAcceptances} donor(s) ·
           radius ${request.currentRadiusKm ? request.currentRadiusKm + " km" : "—"}
+          ${request.requesterName || request.contactPhone ? ` · ${[request.requesterName, request.contactPhone].filter(Boolean).join(" · ")}` : ""}
         </div>
       </div>
       <span class="badge ${request.status}">${request.status}</span>

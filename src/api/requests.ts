@@ -26,6 +26,8 @@ const GuidedBody = z.object({
   targetDonorAcceptances: z.number().int().min(1).optional(),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
+  requesterName: z.string().min(1).max(100).optional(),
+  contactPhone: z.string().min(1).max(20).optional(),
 });
 
 async function startRequest(doc: RequestDoc): Promise<void> {
@@ -49,7 +51,7 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
     if (!parsedBody.success) {
       return res.status(400).json({ error: "invalid_body", details: parsedBody.error.flatten() });
     }
-    const { bloodGroup, units, urgency, targetDonorAcceptances, lat, lng } = parsedBody.data;
+    const { bloodGroup, units, urgency, targetDonorAcceptances, lat, lng, requesterName, contactPhone } = parsedBody.data;
     const doc: RequestDoc = {
       requestId: randomUUID(),
       requiredBloodGroup: bloodGroup,
@@ -63,6 +65,8 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
       acceptedDonorIds: [],
       contactedDonorIds: [],
       createdAt: new Date(),
+      ...(requesterName ? { requesterName } : {}),
+      ...(contactPhone ? { contactPhone } : {}),
     };
     await startRequest(doc);
     return res.status(201).json(doc);

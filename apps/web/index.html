@@ -11,6 +11,10 @@
   <h1>RaktSetu</h1>
   <span>emergency donor dispatch console</span>
 </header>
+<div class="hero">
+  <div class="hero-eyebrow">No login. No 10-field intake form.</div>
+  <div class="hero-line">Location, three questions, dispatch starts.</div>
+</div>
 <main>
   <div>
     <section class="card" id="location-card">
@@ -35,6 +39,10 @@
       <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">Tap an answer, or drag the card away.</p>
       <div id="question-deck" class="deck"></div>
       <div id="mcq-complete" hidden>
+        <label for="mcq-requester">Your name (optional — so donors/staff know who to reach)</label>
+        <input id="mcq-requester" type="text" placeholder="e.g. Nurse station, Ward 3" autocomplete="off" />
+        <label for="mcq-phone">Callback number (optional)</label>
+        <input id="mcq-phone" type="tel" placeholder="10-digit mobile" autocomplete="off" />
         <label for="mcq-target">Donors to recruit (optional — defaults to units needed)</label>
         <input id="mcq-target" type="number" min="1" placeholder="auto" />
         <button class="primary" type="button" id="mcq-submit">Dispatch</button>
