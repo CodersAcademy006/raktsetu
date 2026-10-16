@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDb, type DispatchDoc } from "../db/mongo.ts";
 import { getTemporalClient } from "./temporal-client.ts";
 import { donorResponseSignal } from "../temporal/workflows.ts";
+import { asyncHandler } from "./async-handler.ts";
 
 export const demoRepliesRouter = Router();
 
@@ -14,8 +15,8 @@ const RespondBody = z.object({
 // Called by the donor-simulator UI's Accept/Decline buttons. Labeled "demo"
 // because this stands in for a real WhatsApp webhook; the validation and
 // signal logic here is exactly what a real inbound provider would need.
-demoRepliesRouter.post("/requests/:id/respond", async (req, res) => {
-  const requestId = req.params.id;
+demoRepliesRouter.post("/requests/:id/respond", asyncHandler(async (req, res) => {
+  const requestId = String(req.params.id);
   const body = RespondBody.safeParse(req.body);
   if (!body.success) return res.status(400).json({ error: "invalid_body" });
 
@@ -39,4 +40,4 @@ demoRepliesRouter.post("/requests/:id/respond", async (req, res) => {
   await handle.signal(donorResponseSignal, { donorId: body.data.donorId, accepted: body.data.accepted });
 
   res.json({ ok: true });
-});
+}));

@@ -7,6 +7,7 @@ import { geocode } from "../intake/geocode.ts";
 import { getTemporalClient, TASK_QUEUE } from "./temporal-client.ts";
 import { EmergencyRequestWorkflow } from "../temporal/workflows.ts";
 import { BLOOD_GROUPS } from "../matching/compatibility.ts";
+import { asyncHandler } from "./async-handler.ts";
 
 export const requestsRouter = Router();
 
@@ -40,7 +41,7 @@ async function startRequest(doc: RequestDoc): Promise<void> {
   });
 }
 
-requestsRouter.post("/requests", async (req, res) => {
+requestsRouter.post("/requests", asyncHandler(async (req, res) => {
   const isGuided = "bloodGroup" in (req.body ?? {});
 
   if (isGuided) {
@@ -101,9 +102,9 @@ requestsRouter.post("/requests", async (req, res) => {
 
   await startRequest(doc);
   res.status(201).json(doc);
-});
+}));
 
-requestsRouter.get("/requests/:id/state", async (req, res) => {
+requestsRouter.get("/requests/:id/state", asyncHandler(async (req, res) => {
   const db = await getDb();
   const requestId = req.params.id;
   const [request, dispatches, events] = await Promise.all([
@@ -119,10 +120,10 @@ requestsRouter.get("/requests/:id/state", async (req, res) => {
   const donorsById = Object.fromEntries(donors.map((d) => [d.donorId, { name: d.name, bloodGroup: d.bloodGroup }]));
 
   res.json({ request, dispatches, events, donorsById });
-});
+}));
 
-requestsRouter.get("/requests", async (_req, res) => {
+requestsRouter.get("/requests", asyncHandler(async (_req, res) => {
   const db = await getDb();
   const all = await db.collection<RequestDoc>("requests").find().sort({ createdAt: -1 }).limit(50).toArray();
   res.json(all);
-});
+}));

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { getDb, type BloodBankDoc } from "../db/mongo.ts";
 import { ESCALATION_RADII_KM } from "../matching/eligibility.ts";
+import { asyncHandler } from "./async-handler.ts";
 
 export const nearbyRouter = Router();
 
@@ -16,7 +17,7 @@ const Query = z.object({
 // step -- shows what's actually reachable (blood banks + donor counts by
 // group) so staff see the real picture, the same one the dispatch workflow
 // will later search, before they answer anything.
-nearbyRouter.get("/nearby", async (req, res) => {
+nearbyRouter.get("/nearby", asyncHandler(async (req, res) => {
   const parsed = Query.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ error: "invalid_coordinates" });
   const { lat, lng } = parsed.data;
@@ -54,4 +55,4 @@ nearbyRouter.get("/nearby", async (req, res) => {
   const totalDonors = donorGroups.reduce((sum, g) => sum + g.count, 0);
 
   res.json({ searchedRadiusKm: MAX_RADIUS_KM, bloodBanks, donorCountByGroup, totalDonors });
-});
+}));
