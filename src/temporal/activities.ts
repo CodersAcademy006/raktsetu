@@ -3,6 +3,7 @@ import { getDb, type BankReservation, type BloodBankDoc, type DispatchDoc, type 
 import { compatibleDonorGroups } from "../matching/compatibility.ts";
 import { isEligible, eligibilityQuery } from "../matching/eligibility.ts";
 import { DemoWebProvider } from "../dispatch/demo-web-provider.ts";
+import { outreachFacts } from "../dispatch/message.ts";
 
 const BATCH_SIZE = 10;
 const provider = new DemoWebProvider();
@@ -122,8 +123,9 @@ export async function dispatchBatch(requestId: string, donorIds: string[], batch
   const request = await getRequest(requestId);
   const donors = await db.collection<DonorDoc>("donors").find({ donorId: { $in: donorIds } }).toArray();
 
+  const facts = outreachFacts(request);
   for (const donor of donors) {
-    const text = `Emergency: ${request.requiredBloodGroup} blood needed near ${request.locationText}, ${request.unitsRequested} unit(s), ${request.urgency}. Reply if you can donate today.`;
+    const text = `Hi ${donor.name}, a patient urgently needs blood you can give.\n${facts}`;
     await provider.send({ donor, request, batchNo, text });
   }
 

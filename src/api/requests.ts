@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getDb, type RequestDoc, type DispatchDoc, type WorkflowEventDoc, type DonorDoc } from "../db/mongo.ts";
 import { parseEmergencyRequest } from "../intake/gemma-parser.ts";
-import { geocode } from "../intake/geocode.ts";
+import { geocode, nearestLocality } from "../intake/geocode.ts";
 import { getTemporalClient, TASK_QUEUE } from "./temporal-client.ts";
 import { EmergencyRequestWorkflow } from "../temporal/workflows.ts";
 import { BLOOD_GROUPS, COMPONENTS } from "../matching/compatibility.ts";
@@ -11,7 +11,16 @@ import { asyncHandler } from "./async-handler.ts";
 
 export const requestsRouter = Router();
 
+// Who is asking and where donors should go. Required on both intake paths:
+// a donor who accepts needs a hospital to walk into and a number to call.
+const Requester = {
+  hospitalName: z.string().trim().min(2).max(120),
+  contactPhone: z.string().regex(/^\+?[0-9][0-9 -]{6,18}$/, "invalid phone number"),
+  requesterName: z.string().trim().min(1).max(100).optional(),
+};
+
 const FreeTextBody = z.object({
+  ...Requester,
   rawText: z.string().min(3),
   targetDonorAcceptances: z.number().int().min(1).optional(),
 });
@@ -27,8 +36,7 @@ const GuidedBody = z.object({
   targetDonorAcceptances: z.number().int().min(1).optional(),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
-  requesterName: z.string().min(1).max(100).optional(),
-  contactPhone: z.string().regex(/^\+?[0-9][0-9 -]{6,18}$/, "invalid phone number").optional(),
+  ...Requester,
 });
 
 async function startRequest(doc: RequestDoc): Promise<void> {
@@ -52,7 +60,7 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
     if (!parsedBody.success) {
       return res.status(400).json({ error: "invalid_body", details: parsedBody.error.flatten() });
     }
-    const { bloodGroup, component, units, urgency, targetDonorAcceptances, lat, lng, requesterName, contactPhone } = parsedBody.data;
+    const { bloodGroup, component, units, urgency, targetDonorAcceptances, lat, lng, hospitalName, contactPhone, requesterName } = parsedBody.data;
     const doc: RequestDoc = {
       requestId: randomUUID(),
       requiredBloodGroup: bloodGroup,
@@ -60,15 +68,16 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
       unitsRequested: units,
       targetDonorAcceptances: targetDonorAcceptances ?? units,
       location: { type: "Point", coordinates: [lng, lat] },
-      locationText: `${lat.toFixed(3)}, ${lng.toFixed(3)}`,
+      locationText: nearestLocality([lng, lat]) ?? `${lat.toFixed(3)}, ${lng.toFixed(3)}`,
       urgency,
       status: "MATCHING",
       currentRadiusKm: null,
       acceptedDonorIds: [],
       contactedDonorIds: [],
       createdAt: new Date(),
+      hospitalName,
+      contactPhone,
       ...(requesterName ? { requesterName } : {}),
-      ...(contactPhone ? { contactPhone } : {}),
     };
     await startRequest(doc);
     return res.status(201).json(doc);
@@ -105,6 +114,9 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
     acceptedDonorIds: [],
     contactedDonorIds: [],
     createdAt: new Date(),
+    hospitalName: parsedBody.data.hospitalName,
+    contactPhone: parsedBody.data.contactPhone,
+    ...(parsedBody.data.requesterName ? { requesterName: parsedBody.data.requesterName } : {}),
   };
 
   await startRequest(doc);

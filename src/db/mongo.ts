@@ -57,8 +57,9 @@ export interface RequestDoc {
   acceptedDonorIds: string[];
   contactedDonorIds: string[];
   createdAt: Date;
+  hospitalName: string;
+  contactPhone: string;
   requesterName?: string;
-  contactPhone?: string;
 }
 
 export interface DispatchDoc {

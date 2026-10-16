@@ -25,6 +25,17 @@
         <button class="primary" type="submit">Continue</button>
       </form>
     </section>
+    <section class="card" id="hospital-card">
+      <h2>Your hospital</h2>
+      <p class="sub">Saved on this device. Donors who accept see this, with a map link.</p>
+      <label for="hospital-name">Hospital name</label>
+      <input id="hospital-name" type="text" placeholder="e.g. Cooper Hospital, Juhu" autocomplete="organization" required />
+      <label for="hospital-phone">Callback number</label>
+      <input id="hospital-phone" type="tel" placeholder="+91 98xxxxxxxx" autocomplete="tel" required />
+      <label for="hospital-requester">Your name or desk (optional)</label>
+      <input id="hospital-requester" type="text" placeholder="e.g. Blood bank desk, Ward 3" autocomplete="off" />
+    </section>
+
     <section class="card" id="location-card">
       <h2>Step 1 — Location</h2>
       <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.85rem;">
@@ -47,10 +58,6 @@
       <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">Tap an answer, or drag the card away.</p>
       <div id="question-deck" class="deck"></div>
       <div id="mcq-complete" hidden>
-        <label for="mcq-requester">Your name (optional — so donors/staff know who to reach)</label>
-        <input id="mcq-requester" type="text" placeholder="e.g. Nurse station, Ward 3" autocomplete="off" />
-        <label for="mcq-phone">Callback number (optional)</label>
-        <input id="mcq-phone" type="tel" placeholder="10-digit mobile" autocomplete="off" />
         <label for="mcq-target">Donors to recruit (optional — defaults to units needed)</label>
         <input id="mcq-target" type="number" min="1" placeholder="auto" />
         <button class="primary" type="button" id="mcq-submit">Dispatch</button>

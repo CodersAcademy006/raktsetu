@@ -25,6 +25,30 @@ document.getElementById("access-form").addEventListener("submit", (e) => {
   refreshRequestList();
 });
 
+// Hospital identity: entered once, remembered on this device, sent with
+// every request from either intake path.
+const HOSPITAL_FIELDS = { hospitalName: "hospital-name", contactPhone: "hospital-phone", requesterName: "hospital-requester" };
+for (const [key, id] of Object.entries(HOSPITAL_FIELDS)) {
+  const el = document.getElementById(id);
+  try { el.value = localStorage.getItem(`raktsetu.${key}`) ?? ""; } catch {}
+  el.addEventListener("change", () => { try { localStorage.setItem(`raktsetu.${key}`, el.value.trim()); } catch {} });
+}
+
+// Returns the requester fields, or null after pointing at what's missing.
+function requesterFields() {
+  const out = {};
+  for (const [key, id] of Object.entries(HOSPITAL_FIELDS)) {
+    const v = document.getElementById(id).value.trim();
+    if (v) out[key] = v;
+  }
+  if (!out.hospitalName || !out.contactPhone) {
+    document.getElementById("hospital-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById(out.hospitalName ? "hospital-phone" : "hospital-name").focus();
+    return null;
+  }
+  return out;
+}
+
 let activeRequestId = null;
 let pollTimer = null;
 let sharedLocation = null; // { lat, lng }
@@ -238,8 +262,8 @@ async function loadNearby() {
 document.getElementById("mcq-submit").addEventListener("click", async () => {
   if (!sharedLocation || !mcqAnswers.component || !mcqAnswers.bloodGroup || !mcqAnswers.units || !mcqAnswers.urgency) return;
   const targetRaw = document.getElementById("mcq-target").value;
-  const requesterName = document.getElementById("mcq-requester").value.trim();
-  const contactPhone = document.getElementById("mcq-phone").value.trim();
+  const requester = requesterFields();
+  if (!requester) return;
   const submitBtn = document.getElementById("mcq-submit");
   submitBtn.disabled = true;
   submitBtn.textContent = "Dispatching…";
@@ -256,8 +280,7 @@ document.getElementById("mcq-submit").addEventListener("click", async () => {
         lat: sharedLocation.lat,
         lng: sharedLocation.lng,
         ...(targetRaw ? { targetDonorAcceptances: Number(targetRaw) } : {}),
-        ...(requesterName ? { requesterName } : {}),
-        ...(contactPhone ? { contactPhone } : {}),
+        ...requester,
       }),
     });
     const body = await res.json();
@@ -277,6 +300,8 @@ document.getElementById("mcq-submit").addEventListener("click", async () => {
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const rawText = document.getElementById("rawText").value.trim();
+  const requester = requesterFields();
+  if (!requester) return;
   const targetRaw = document.getElementById("target").value;
   const submitBtn = form.querySelector("button");
   submitBtn.disabled = true;
@@ -288,6 +313,7 @@ form.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rawText,
+        ...requester,
         ...(targetRaw ? { targetDonorAcceptances: Number(targetRaw) } : {}),
       }),
     });
@@ -360,7 +386,7 @@ function render(request, dispatches, events, donorsById) {
         <div class="sub" style="color:var(--ink-dim);font-size:0.82rem;">
           ${esc(request.unitsRequested)} unit(s) · target ${esc(request.targetDonorAcceptances)} donor(s) ·
           radius ${request.currentRadiusKm ? esc(request.currentRadiusKm) + " km" : "—"}
-          ${request.requesterName || request.contactPhone ? ` · ${esc([request.requesterName, request.contactPhone].filter(Boolean).join(" · "))}` : ""}
+          ${request.hospitalName || request.contactPhone ? ` · ${esc([request.hospitalName, request.requesterName, request.contactPhone].filter(Boolean).join(" · "))}` : ""}
         </div>
       </div>
       <span class="badge ${esc(request.status)}">${esc(request.status)}</span>

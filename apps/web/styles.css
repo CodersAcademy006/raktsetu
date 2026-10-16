@@ -252,3 +252,4 @@ button:disabled { opacity: 0.45; cursor: default; transform: none; }
   button:active { transform: none; }
   .question-card { transition: opacity 180ms ease !important; touch-action: auto; cursor: default; }
 }
+.card .sub { margin: 0 0 10px; color: var(--ink-dim); font-size: 0.85rem; }

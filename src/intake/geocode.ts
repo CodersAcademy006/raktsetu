@@ -29,3 +29,22 @@ export function geocode(locationText: string): [number, number] | null {
 export function knownLocalityNames(): string[] {
   return Object.keys(GAZETTEER);
 }
+
+function distanceKm([lng1, lat1]: [number, number], [lng2, lat2]: [number, number]): number {
+  const rad = Math.PI / 180;
+  const a =
+    Math.sin(((lat2 - lat1) * rad) / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(((lng2 - lng1) * rad) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(a));
+}
+
+// Human place name for a shared GPS position: the nearest gazetteer locality
+// within maxKm, else null (callers fall back to coordinates).
+export function nearestLocality(coords: [number, number], maxKm = 8): string | null {
+  let best: { name: string; km: number } | null = null;
+  for (const [name, point] of Object.entries(GAZETTEER)) {
+    const km = distanceKm(coords, point);
+    if (km <= maxKm && (!best || km < best.km)) best = { name, km };
+  }
+  return best ? best.name.replace(/\b\w/g, (c) => c.toUpperCase()) : null;
+}
