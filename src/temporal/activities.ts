@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb, type DispatchDoc, type DonorDoc, type RequestDoc, type WorkflowEventDoc } from "../db/mongo.ts";
 import { compatibleDonorGroups } from "../matching/compatibility.ts";
-import { isEligibleToday } from "../matching/eligibility.ts";
+import { isEligible, eligibilityQuery } from "../matching/eligibility.ts";
 import { DemoWebProvider } from "../dispatch/demo-web-provider.ts";
 
 const BATCH_SIZE = 10;
@@ -20,42 +20,45 @@ export async function getRequest(requestId: string): Promise<RequestDoc> {
   return req;
 }
 
-// Queries eligible, compatible, opted-in donors within radiusKm who have not
-// already been contacted for this request, nearest first. The Mongo $near
-// query does the geospatial work; this layer applies the compatibility and
-// eligibility rules on top (never Gemma — donation eligibility is a
-// deterministic rule, not a language-model judgment call).
-export async function findCandidates(
-  requestId: string,
-  radiusKm: number,
-): Promise<DonorDoc[]> {
+// Eligible, compatible, opted-in donors within radiusKm who have not been
+// contacted for this request yet, nearest first. Eligibility is part of the
+// $geoNear filter, so the batch limit applies after it. isEligible() runs
+// again as a cheap guard that the filter and the rule agree. Never decided by
+// Gemma: donation eligibility is a medical rule, not a model judgment.
+export async function findCandidates(requestId: string, radiusKm: number, limit = BATCH_SIZE): Promise<string[]> {
   const db = await getDb();
   const request = await getRequest(requestId);
-  const compatibleGroups = compatibleDonorGroups(request.requiredBloodGroup);
+  const now = new Date();
 
   const candidates = await db
     .collection<DonorDoc>("donors")
-    .find({
-      bloodGroup: { $in: compatibleGroups },
-      optInStatus: true,
-      active: true,
-      donorId: { $nin: request.contactedDonorIds },
-      location: {
-        $near: {
-          $geometry: request.location,
-          $maxDistance: radiusKm * 1000,
+    .aggregate<DonorDoc>([
+      {
+        $geoNear: {
+          near: request.location,
+          distanceField: "distanceMeters",
+          maxDistance: radiusKm * 1000,
+          spherical: true,
+          query: {
+            bloodGroup: { $in: compatibleDonorGroups(request.requiredBloodGroup) },
+            optInStatus: true,
+            active: true,
+            donorId: { $nin: request.contactedDonorIds },
+            ...eligibilityQuery(now),
+          },
         },
       },
-    })
-    .limit(BATCH_SIZE)
+      { $limit: limit },
+    ])
     .toArray();
 
-  return candidates.filter((d) => isEligibleToday(d.lastDonationDate));
+  return candidates.filter((d) => isEligible(d, now)).map((d) => d.donorId);
 }
 
-export async function dispatchBatch(requestId: string, donors: DonorDoc[], batchNo: number): Promise<void> {
+export async function dispatchBatch(requestId: string, donorIds: string[], batchNo: number, responseWindowMs: number): Promise<void> {
   const db = await getDb();
   const request = await getRequest(requestId);
+  const donors = await db.collection<DonorDoc>("donors").find({ donorId: { $in: donorIds } }).toArray();
 
   for (const donor of donors) {
     const text = `Emergency: ${request.requiredBloodGroup} blood needed near ${request.locationText}, ${request.unitsRequested} unit(s), ${request.urgency}. Reply if you can donate today.`;
@@ -65,14 +68,14 @@ export async function dispatchBatch(requestId: string, donors: DonorDoc[], batch
   await db.collection<RequestDoc>("requests").updateOne(
     { requestId },
     {
-      $set: { status: "WAITING", currentRadiusKm: request.currentRadiusKm },
-      $push: { contactedDonorIds: { $each: donors.map((d) => d.donorId) } },
+      $set: { status: "WAITING", nextEscalationAt: new Date(Date.now() + responseWindowMs) },
+      $push: { contactedDonorIds: { $each: donorIds } },
     },
   );
 
   await logEvent(requestId, "BATCH_DISPATCHED_SIMULATED", {
     batchNo,
-    donorIds: donors.map((d) => d.donorId),
+    donorIds,
   });
 }
 
@@ -84,7 +87,7 @@ export async function setRequestRadius(requestId: string, radiusKm: number): Pro
 
 export async function finalizeRequest(requestId: string, status: "FULFILLED" | "EXHAUSTED"): Promise<void> {
   const db = await getDb();
-  await db.collection<RequestDoc>("requests").updateOne({ requestId }, { $set: { status } });
+  await db.collection<RequestDoc>("requests").updateOne({ requestId }, { $set: { status, nextEscalationAt: null } });
   // Stand down everyone still pending: the donor page then shows "no longer needed".
   const stoodDown = await db
     .collection<DispatchDoc>("dispatches")

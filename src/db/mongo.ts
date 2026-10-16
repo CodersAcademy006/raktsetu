@@ -1,5 +1,6 @@
 import { MongoClient, type Db } from "mongodb";
 import type { BloodGroup } from "../matching/compatibility.ts";
+import type { Sex } from "../matching/eligibility.ts";
 
 export interface BloodBankDoc {
   bankId: string;
@@ -14,6 +15,9 @@ export interface DonorDoc {
   name: string;
   bloodGroup: BloodGroup;
   location: { type: "Point"; coordinates: [number, number] }; // [lng, lat]
+  sex: Sex;
+  dateOfBirth: Date;
+  weightKg: number;
   lastDonationDate: Date | null;
   optInStatus: boolean;
   active: boolean;
@@ -34,6 +38,7 @@ export interface RequestDoc {
   urgency: string;
   status: RequestStatus;
   currentRadiusKm: number | null;
+  nextEscalationAt?: Date | null; // when the current batch's response window closes
   acceptedDonorIds: string[];
   contactedDonorIds: string[];
   createdAt: Date;
@@ -61,16 +66,21 @@ export interface WorkflowEventDoc {
   metadata: Record<string, unknown>;
 }
 
-let client: MongoClient | null = null;
+// Cache the connect promise, not the client: concurrent callers share one
+// connection attempt, and a failed attempt is dropped so the next call
+// retries instead of reusing a closed client forever.
+let clientPromise: Promise<MongoClient> | null = null;
 
 export async function getDb(): Promise<Db> {
-  if (!client) {
+  if (!clientPromise) {
     const uri = process.env.MONGODB_URI;
     if (!uri) throw new Error("MONGODB_URI not set");
-    client = new MongoClient(uri);
-    await client.connect();
+    clientPromise = new MongoClient(uri, { serverSelectionTimeoutMS: 10_000 }).connect().catch((err) => {
+      clientPromise = null;
+      throw err;
+    });
   }
-  return client.db();
+  return (await clientPromise).db();
 }
 
 export async function ensureIndexes(db: Db): Promise<void> {
@@ -85,8 +95,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
 }
 
 export async function closeDb(): Promise<void> {
-  if (client) {
-    await client.close();
-    client = null;
-  }
+  const pending = clientPromise;
+  clientPromise = null;
+  if (pending) await (await pending).close();
 }

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getDb, ensureIndexes, closeDb, type DonorDoc, type BloodBankDoc } from "../src/db/mongo.ts";
 import { BLOOD_GROUPS, type BloodGroup } from "../src/matching/compatibility.ts";
-import { DONATION_COOLDOWN_DAYS } from "../src/matching/eligibility.ts";
+import type { Sex } from "../src/matching/eligibility.ts";
 import { knownLocalityNames, geocode } from "../src/intake/geocode.ts";
 
 // Approximate real-world blood type distribution (India-weighted).
@@ -28,6 +28,17 @@ const FAR_LOCATIONS: [number, number][] = [[73.8567, 18.5204], [73.7898, 19.9975
 function jitter([lng, lat]: [number, number], spreadKm: number): [number, number] {
   const degPerKm = 1 / 111; // rough conversion, fine for a demo-radius scale
   return [lng + (Math.random() - 0.5) * 2 * spreadKm * degPerKm, lat + (Math.random() - 0.5) * 2 * spreadKm * degPerKm];
+}
+
+// A realistic mix, including some donors the eligibility rule must exclude
+// (under 18 / over 65 / under 45 kg), so the filter is exercised by real data.
+function randomProfile(): { sex: Sex; dateOfBirth: Date; weightKg: number } {
+  const ageYears = 17 + Math.random() * 52; // 17-69
+  return {
+    sex: Math.random() < 0.7 ? "M" : "F",
+    dateOfBirth: new Date(Date.now() - ageYears * 365.25 * 24 * 60 * 60 * 1000),
+    weightKg: Math.round(42 + Math.random() * 50),
+  };
 }
 
 function randomLastDonation(): Date | null {
@@ -80,6 +91,7 @@ async function main() {
       name: `Donor ${i + 1}`,
       bloodGroup: weightedRandomBloodGroup(),
       location: { type: "Point", coordinates: [lng, lat] },
+      ...randomProfile(),
       lastDonationDate: randomLastDonation(),
       optInStatus: true,
       active: true,
@@ -97,6 +109,7 @@ async function main() {
       name: `Far Donor ${i + 1}`,
       bloodGroup: weightedRandomBloodGroup(),
       location: { type: "Point", coordinates: [lng, lat] },
+      ...randomProfile(),
       lastDonationDate: randomLastDonation(),
       optInStatus: true,
       active: true,
@@ -107,7 +120,6 @@ async function main() {
 
   await donors.insertMany(docs);
   console.log(`Seeded ${docs.length} synthetic donors (dense: 420, far: 40).`);
-  console.log(`Cooldown window: ${DONATION_COOLDOWN_DAYS} days.`);
   await closeDb();
 }
 

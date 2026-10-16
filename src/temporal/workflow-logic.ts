@@ -35,3 +35,7 @@ export function applyDonorResponse(
 export function hasReachedTarget(state: ResponseState, targetDonorAcceptances: number): boolean {
   return state.acceptedDonorIds.size >= targetDonorAcceptances;
 }
+
+export function batchSettled(state: ResponseState, batch: readonly string[]): boolean {
+  return batch.every((id) => state.acceptedDonorIds.has(id) || state.declinedDonorIds.has(id));
+}
