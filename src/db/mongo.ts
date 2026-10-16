@@ -105,7 +105,16 @@ export async function ensureIndexes(db: Db): Promise<void> {
   await db.collection<DonorDoc>("donors").createIndex({ location: "2dsphere" });
   await db.collection<DonorDoc>("donors").createIndex({ donorId: 1 }, { unique: true });
   await db.collection<RequestDoc>("requests").createIndex({ requestId: 1 }, { unique: true });
-  await db.collection<DispatchDoc>("dispatches").createIndex({ requestId: 1, donorId: 1 });
+  // Was non-unique in early versions; rebuild it unique if an old one exists.
+  const dispatches = db.collection<DispatchDoc>("dispatches");
+  try {
+    await dispatches.createIndex({ requestId: 1, donorId: 1 }, { unique: true });
+  } catch (err) {
+    const code = (err as { code?: number }).code;
+    if (code !== 85 && code !== 86) throw err; // IndexOptionsConflict / IndexKeySpecsConflict
+    await dispatches.dropIndex("requestId_1_donorId_1");
+    await dispatches.createIndex({ requestId: 1, donorId: 1 }, { unique: true });
+  }
   await db.collection<DispatchDoc>("dispatches").createIndex({ dispatchId: 1 }, { unique: true });
   await db.collection<WorkflowEventDoc>("workflow_events").createIndex({ requestId: 1, timestamp: 1 });
 }

@@ -4,6 +4,7 @@ import { compatibleDonorGroups } from "../matching/compatibility.ts";
 import { isEligible, eligibilityQuery } from "../matching/eligibility.ts";
 import { DemoWebProvider } from "../dispatch/demo-web-provider.ts";
 import { outreachFacts } from "../dispatch/message.ts";
+import { draftOpener } from "../dispatch/outreach.ts";
 
 const BATCH_SIZE = 10;
 const provider = new DemoWebProvider();
@@ -124,8 +125,9 @@ export async function dispatchBatch(requestId: string, donorIds: string[], batch
   const donors = await db.collection<DonorDoc>("donors").find({ donorId: { $in: donorIds } }).toArray();
 
   const facts = outreachFacts(request);
+  const opener = await draftOpener(request);
   for (const donor of donors) {
-    const text = `Hi ${donor.name}, a patient urgently needs blood you can give.\n${facts}`;
+    const text = `Hi ${donor.name},\n${opener.text}\n${facts}`;
     await provider.send({ donor, request, batchNo, text });
   }
 
@@ -133,13 +135,14 @@ export async function dispatchBatch(requestId: string, donorIds: string[], batch
     { requestId },
     {
       $set: { status: "WAITING", nextEscalationAt: new Date(Date.now() + responseWindowMs) },
-      $push: { contactedDonorIds: { $each: donorIds } },
+      $addToSet: { contactedDonorIds: { $each: donorIds } },
     },
   );
 
   await logEvent(requestId, "BATCH_DISPATCHED_SIMULATED", {
     batchNo,
     donorIds,
+    messageSource: opener.source,
   });
 }
 

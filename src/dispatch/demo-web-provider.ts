@@ -22,7 +22,10 @@ export class DemoWebProvider implements NotificationProvider {
       status: "sent",
       createdAt: new Date(),
     };
-    await db.collection<DispatchDoc>("dispatches").insertOne(doc);
+    // Upsert on (request, donor) so an activity retry never messages a donor twice.
+    await db
+      .collection<DispatchDoc>("dispatches")
+      .updateOne({ requestId: doc.requestId, donorId: doc.donorId }, { $setOnInsert: doc }, { upsert: true });
     return { status: "sent" };
   }
 }

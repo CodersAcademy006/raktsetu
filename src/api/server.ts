@@ -33,13 +33,18 @@ process.on("unhandledRejection", (err) => console.error("unhandledRejection", er
 
 const port = Number(process.env.PORT ?? 3000);
 
-async function main() {
-  const db = await getDb();
-  await ensureIndexes(db);
-  app.listen(port, () => console.log(`RaktSetu API listening on :${port}`));
-}
+// Listen first so the UI and health check are up even while the database is
+// unreachable; index setup retries in the background instead of exiting.
+app.get("/healthz", (_req, res) => res.json({ ok: true }));
+app.listen(port, () => console.log(`RaktSetu API listening on :${port}`));
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+(async function prepareDb(attempt = 1): Promise<void> {
+  try {
+    await ensureIndexes(await getDb());
+    console.log("Database ready");
+  } catch (err) {
+    const delay = Math.min(30_000, 2_000 * attempt);
+    console.error(`Database not ready (attempt ${attempt}), retrying in ${delay / 1000}s:`, (err as Error).message);
+    setTimeout(() => void prepareDb(attempt + 1), delay);
+  }
+})();
