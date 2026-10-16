@@ -3,7 +3,7 @@ import type * as activities from "./activities.ts";
 import { ESCALATION_RADII_KM } from "../matching/eligibility.ts";
 import { newResponseState, applyDonorResponse, hasReachedTarget, batchSettled } from "./workflow-logic.ts";
 
-const { findCandidates, dispatchBatch, setRequestRadius, getRequest, finalizeRequest } = proxyActivities<typeof activities>({
+const { reserveBankUnits, findCandidates, dispatchBatch, setRequestRadius, finalizeRequest } = proxyActivities<typeof activities>({
   startToCloseTimeout: "30 seconds",
   retry: { maximumAttempts: 5 },
 });
@@ -16,14 +16,18 @@ const DEFAULT_RESPONSE_WINDOW_MS = 15_000;
 export const donorResponseSignal = defineSignal<[{ donorId: string; accepted: boolean }]>("donorResponse");
 
 export async function EmergencyRequestWorkflow(requestId: string, responseWindowMs = DEFAULT_RESPONSE_WINDOW_MS): Promise<void> {
-  const request = await getRequest(requestId);
-  const target = request.targetDonorAcceptances;
   let state = newResponseState();
   const contactedDonorIds = new Set<string>();
 
   setHandler(donorResponseSignal, ({ donorId, accepted }) => {
     state = applyDonorResponse(state, contactedDonorIds, donorId, accepted);
   });
+
+  const target = await reserveBankUnits(requestId);
+  if (target === 0) {
+    await finalizeRequest(requestId, "FULFILLED");
+    return;
+  }
 
   let batchNo = 0;
   for (const radiusKm of ESCALATION_RADII_KM) {

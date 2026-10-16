@@ -8,6 +8,18 @@ export interface BloodBankDoc {
   location: { type: "Point"; coordinates: [number, number] };
   phone: string;
   synthetic: boolean;
+  // Units on the shelf, by component then blood group. Synthetic in the demo;
+  // a real deployment syncs this from the bank's inventory (e.g. e-RaktKosh).
+  stock: Partial<Record<Component, Partial<Record<BloodGroup, number>>>>;
+}
+
+export interface BankReservation {
+  bankId: string;
+  name: string;
+  phone: string;
+  distanceKm: number;
+  bloodGroup: BloodGroup;
+  units: number;
 }
 
 export interface DonorDoc {
@@ -34,6 +46,8 @@ export interface RequestDoc {
   component: Component;
   unitsRequested: number;
   targetDonorAcceptances: number;
+  bankReservations?: BankReservation[];
+  donorsNeeded?: number; // target minus units reserved from banks
   location: { type: "Point"; coordinates: [number, number] };
   locationText: string;
   urgency: string;

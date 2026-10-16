@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getDb, ensureIndexes, closeDb, type DonorDoc, type BloodBankDoc } from "../src/db/mongo.ts";
-import { BLOOD_GROUPS, type BloodGroup } from "../src/matching/compatibility.ts";
+import { BLOOD_GROUPS, COMPONENTS, type BloodGroup } from "../src/matching/compatibility.ts";
 import type { Sex } from "../src/matching/eligibility.ts";
 import { knownLocalityNames, geocode } from "../src/intake/geocode.ts";
 
@@ -53,6 +53,21 @@ function randomLastDonation(): Date | null {
 // from one has no bank-based option at all, only the donor network.
 const FAR_LOCALITY_NAMES = new Set(["pune", "nashik"]);
 
+// Sparse, uneven stock like real banks: common positive groups usually on
+// the shelf, negatives and platelets often at zero. Re-run the seed to
+// restock after demos have drawn it down.
+function randomStock(): BloodBankDoc["stock"] {
+  const stock: BloodBankDoc["stock"] = {};
+  for (const component of COMPONENTS) {
+    stock[component] = {};
+    for (const group of BLOOD_GROUPS) {
+      const scarce = group.endsWith("-") || component === "platelets";
+      stock[component]![group] = Math.random() < (scarce ? 0.97 : 0.8) ? 0 : 1 + Math.floor(Math.random() * 2);
+    }
+  }
+  return stock;
+}
+
 async function seedBloodBanks(db: Awaited<ReturnType<typeof getDb>>) {
   const banks = db.collection<BloodBankDoc>("blood_banks");
   await banks.deleteMany({ synthetic: true });
@@ -67,6 +82,7 @@ async function seedBloodBanks(db: Awaited<ReturnType<typeof getDb>>) {
         location: { type: "Point" as const, coordinates: coords },
         phone: `+91-2${(20000000 + i).toString().padStart(8, "0")}`,
         synthetic: true,
+        stock: randomStock(),
       };
     });
 

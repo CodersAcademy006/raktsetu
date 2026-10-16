@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getDb, type DispatchDoc, type DonorDoc, type RequestDoc, type WorkflowEventDoc } from "../db/mongo.ts";
+import { getDb, type BankReservation, type BloodBankDoc, type DispatchDoc, type DonorDoc, type RequestDoc, type WorkflowEventDoc } from "../db/mongo.ts";
 import { compatibleDonorGroups } from "../matching/compatibility.ts";
 import { isEligible, eligibilityQuery } from "../matching/eligibility.ts";
 import { DemoWebProvider } from "../dispatch/demo-web-provider.ts";
@@ -18,6 +18,68 @@ export async function getRequest(requestId: string): Promise<RequestDoc> {
   const req = await db.collection<RequestDoc>("requests").findOne({ requestId });
   if (!req) throw new Error(`request ${requestId} not found`);
   return req;
+}
+
+// Units from a bank farther than this take longer to arrive than a nearby
+// donor walking in, so they are not reserved. Tune per city.
+const BANK_RADIUS_KM = 10;
+
+// Banks first: before any donor is contacted, reserve compatible units from
+// the nearest banks within BANK_RADIUS_KM. Each unit comes off the
+// shelf through a conditional decrement, so two requests can never reserve
+// the same unit. Exact-group units are taken before other compatible groups.
+// Returns how many donors are still needed after the reservations.
+export async function reserveBankUnits(requestId: string): Promise<number> {
+  const db = await getDb();
+  const request = await getRequest(requestId);
+  const component = request.component ?? "whole_blood";
+  const groups = compatibleDonorGroups(request.requiredBloodGroup, component);
+  const ordered = [request.requiredBloodGroup, ...groups.filter((g) => g !== request.requiredBloodGroup)].filter((g) =>
+    groups.includes(g),
+  );
+  const banksColl = db.collection<BloodBankDoc>("blood_banks");
+
+  const banks = await banksColl
+    .aggregate<BloodBankDoc & { distanceMeters: number }>([
+      {
+        $geoNear: {
+          near: request.location,
+          distanceField: "distanceMeters",
+          maxDistance: BANK_RADIUS_KM * 1000,
+          spherical: true,
+        },
+      },
+    ])
+    .toArray();
+
+  let remaining = request.unitsRequested;
+  const reservations: BankReservation[] = [];
+  for (const bank of banks) {
+    for (const group of ordered) {
+      if (remaining === 0) break;
+      const field = `stock.${component}.${group}`;
+      const available = bank.stock?.[component]?.[group] ?? 0;
+      const take = Math.min(available, remaining);
+      if (take === 0) continue;
+      const res = await banksColl.updateOne({ bankId: bank.bankId, [field]: { $gte: take } }, { $inc: { [field]: -take } });
+      if (res.modifiedCount === 0) continue; // someone else took it first
+      remaining -= take;
+      reservations.push({
+        bankId: bank.bankId,
+        name: bank.name,
+        phone: bank.phone,
+        distanceKm: Math.round(bank.distanceMeters / 100) / 10,
+        bloodGroup: group,
+        units: take,
+      });
+    }
+  }
+
+  const reserved = request.unitsRequested - remaining;
+  const donorsNeeded = Math.max(0, request.targetDonorAcceptances - reserved);
+  await db.collection<RequestDoc>("requests").updateOne({ requestId }, { $set: { bankReservations: reservations, donorsNeeded } });
+  await logEvent(requestId, "BANKS_CHECKED", { reservedUnits: reserved, banks: reservations.length, donorsNeeded });
+  return donorsNeeded;
 }
 
 // Eligible, compatible, opted-in donors within radiusKm who have not been

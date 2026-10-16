@@ -23,8 +23,8 @@ function fakeActivities(donorsByRadius: Record<number, string[]>, target = 1) {
   return {
     calls,
     activities: {
-      async getRequest() {
-        return { targetDonorAcceptances: target };
+      async reserveBankUnits() {
+        return target;
       },
       async setRequestRadius(_id: string, r: number) {
         calls.radii.push(r);
@@ -65,6 +65,13 @@ async function run(fake: ReturnType<typeof fakeActivities>, drive?: (handle: any
     await handle.result();
   });
 }
+
+test("banks covering every unit finish FULFILLED without contacting donors", async () => {
+  const fake = fakeActivities({ 5: ["a"] }, 0);
+  await run(fake);
+  assert.equal(fake.calls.final, "FULFILLED");
+  assert.deepEqual(fake.calls.batches, []);
+});
 
 test("nobody answers: every radius is tried, then EXHAUSTED", async () => {
   const fake = fakeActivities({ 5: ["a"], 25: ["b"] });
