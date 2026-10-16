@@ -58,3 +58,19 @@ test(`weight must be at least ${MIN_WEIGHT_KG} kg`, () => {
 test("cooldowns match NBTC values", () => {
   assert.deepEqual(COOLDOWN_DAYS, { M: 90, F: 120 });
 });
+
+test("PRBC follows the red cell table", () => {
+  assert.deepEqual(compatibleDonorGroups("O+", "prbc"), ["O-", "O+"]);
+});
+
+test("AB is the universal plasma donor, O plasma only goes to O", () => {
+  for (const recipient of BLOOD_GROUPS) assert.equal(isCompatibleDonor("AB+", recipient, "plasma"), true);
+  assert.deepEqual(compatibleDonorGroups("AB-", "plasma"), ["AB-", "AB+"]);
+  assert.equal(isCompatibleDonor("O-", "A+", "plasma"), false);
+});
+
+test("Rh does not restrict plasma but does restrict platelets", () => {
+  assert.equal(isCompatibleDonor("A+", "A-", "plasma"), true);
+  assert.equal(isCompatibleDonor("A+", "A-", "platelets"), false);
+  assert.equal(isCompatibleDonor("AB-", "A-", "platelets"), true);
+});

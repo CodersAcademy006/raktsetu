@@ -28,7 +28,7 @@ document.getElementById("access-form").addEventListener("submit", (e) => {
 let activeRequestId = null;
 let pollTimer = null;
 let sharedLocation = null; // { lat, lng }
-const mcqAnswers = { bloodGroup: null, units: null, urgency: null };
+const mcqAnswers = { component: null, bloodGroup: null, units: null, urgency: null };
 
 const BLOOD_GROUPS = ["O-", "O+", "A-", "A+", "B-", "B+", "AB-", "AB+"];
 const UNIT_CHOICES = [1, 2, 3, 4];
@@ -46,7 +46,14 @@ const timelineCard = document.getElementById("timeline-card");
 
 // --- Step 1: location + nearby preview -------------------------------------
 
+const COMPONENT_CHOICES = [
+  { value: "whole_blood", label: "Whole blood" },
+  { value: "prbc", label: "Red cells (PRBC)" },
+  { value: "platelets", label: "Platelets" },
+  { value: "plasma", label: "Plasma (FFP)" },
+];
 const QUESTIONS = [
+  { key: "component", title: "What is needed", options: COMPONENT_CHOICES },
   { key: "bloodGroup", title: "Blood group needed", options: BLOOD_GROUPS.map((v) => ({ value: v, label: v })) },
   { key: "units", title: "Units needed", options: UNIT_CHOICES.map((v) => ({ value: String(v), label: String(v) })) },
   { key: "urgency", title: "Urgency", options: URGENCY_CHOICES },
@@ -62,6 +69,7 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 let deckQueue = [];
 
 function initQuestionDeck() {
+  mcqAnswers.component = null;
   mcqAnswers.bloodGroup = null;
   mcqAnswers.units = null;
   mcqAnswers.urgency = null;
@@ -228,7 +236,7 @@ async function loadNearby() {
 }
 
 document.getElementById("mcq-submit").addEventListener("click", async () => {
-  if (!sharedLocation || !mcqAnswers.bloodGroup || !mcqAnswers.units || !mcqAnswers.urgency) return;
+  if (!sharedLocation || !mcqAnswers.component || !mcqAnswers.bloodGroup || !mcqAnswers.units || !mcqAnswers.urgency) return;
   const targetRaw = document.getElementById("mcq-target").value;
   const requesterName = document.getElementById("mcq-requester").value.trim();
   const contactPhone = document.getElementById("mcq-phone").value.trim();
@@ -241,6 +249,7 @@ document.getElementById("mcq-submit").addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        component: mcqAnswers.component,
         bloodGroup: mcqAnswers.bloodGroup,
         units: Number(mcqAnswers.units),
         urgency: mcqAnswers.urgency,

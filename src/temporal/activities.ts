@@ -40,7 +40,7 @@ export async function findCandidates(requestId: string, radiusKm: number, limit 
           maxDistance: radiusKm * 1000,
           spherical: true,
           query: {
-            bloodGroup: { $in: compatibleDonorGroups(request.requiredBloodGroup) },
+            bloodGroup: { $in: compatibleDonorGroups(request.requiredBloodGroup, request.component ?? "whole_blood") },
             optInStatus: true,
             active: true,
             donorId: { $nin: request.contactedDonorIds },

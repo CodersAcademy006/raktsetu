@@ -1,5 +1,5 @@
 import { MongoClient, type Db } from "mongodb";
-import type { BloodGroup } from "../matching/compatibility.ts";
+import type { BloodGroup, Component } from "../matching/compatibility.ts";
 import type { Sex } from "../matching/eligibility.ts";
 
 export interface BloodBankDoc {
@@ -31,6 +31,7 @@ export const TERMINAL_STATUSES: readonly RequestStatus[] = ["FULFILLED", "EXHAUS
 export interface RequestDoc {
   requestId: string;
   requiredBloodGroup: BloodGroup;
+  component: Component;
   unitsRequested: number;
   targetDonorAcceptances: number;
   location: { type: "Point"; coordinates: [number, number] };

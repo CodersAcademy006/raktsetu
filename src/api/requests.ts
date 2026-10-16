@@ -6,7 +6,7 @@ import { parseEmergencyRequest } from "../intake/gemma-parser.ts";
 import { geocode } from "../intake/geocode.ts";
 import { getTemporalClient, TASK_QUEUE } from "./temporal-client.ts";
 import { EmergencyRequestWorkflow } from "../temporal/workflows.ts";
-import { BLOOD_GROUPS } from "../matching/compatibility.ts";
+import { BLOOD_GROUPS, COMPONENTS } from "../matching/compatibility.ts";
 import { asyncHandler } from "./async-handler.ts";
 
 export const requestsRouter = Router();
@@ -21,6 +21,7 @@ const FreeTextBody = z.object({
 // answers, not free text -- so there's nothing here for Gemma to parse.
 const GuidedBody = z.object({
   bloodGroup: z.enum(BLOOD_GROUPS),
+  component: z.enum(COMPONENTS).default("whole_blood"),
   units: z.number().int().min(1).max(10),
   urgency: z.enum(["critical", "urgent", "routine"]),
   targetDonorAcceptances: z.number().int().min(1).optional(),
@@ -51,10 +52,11 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
     if (!parsedBody.success) {
       return res.status(400).json({ error: "invalid_body", details: parsedBody.error.flatten() });
     }
-    const { bloodGroup, units, urgency, targetDonorAcceptances, lat, lng, requesterName, contactPhone } = parsedBody.data;
+    const { bloodGroup, component, units, urgency, targetDonorAcceptances, lat, lng, requesterName, contactPhone } = parsedBody.data;
     const doc: RequestDoc = {
       requestId: randomUUID(),
       requiredBloodGroup: bloodGroup,
+      component,
       unitsRequested: units,
       targetDonorAcceptances: targetDonorAcceptances ?? units,
       location: { type: "Point", coordinates: [lng, lat] },
@@ -92,6 +94,7 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
   const doc: RequestDoc = {
     requestId: randomUUID(),
     requiredBloodGroup: parsed.bloodGroup,
+    component: parsed.component,
     unitsRequested: parsed.units,
     targetDonorAcceptances: parsedBody.data.targetDonorAcceptances ?? parsed.units,
     location: { type: "Point", coordinates: coords },

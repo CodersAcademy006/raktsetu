@@ -1,10 +1,11 @@
 import { ParsedRequestSchema, type ParsedRequest } from "./request-schema.ts";
-import { BLOOD_GROUPS } from "../matching/compatibility.ts";
+import { BLOOD_GROUPS, COMPONENTS } from "../matching/compatibility.ts";
 import { knownLocalityNames } from "./geocode.ts";
 
 const SYSTEM_PROMPT = `You extract structured fields from an emergency blood request written by hospital staff.
 Return ONLY a JSON object with exactly these keys:
 - bloodGroup: one of ${BLOOD_GROUPS.join(", ")}
+- component: one of ${COMPONENTS.join(", ")} (prbc = packed red cells; use whole_blood if no component is named)
 - units: integer number of units needed
 - locationText: the locality name mentioned, matching one of: ${knownLocalityNames().join(", ")} (pick the closest match, lowercase)
 - urgency: one of critical, urgent, routine
