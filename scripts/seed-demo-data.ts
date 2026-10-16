@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { getDb, ensureIndexes, closeDb, type DonorDoc } from "../src/db/mongo.ts";
+import { getDb, ensureIndexes, closeDb, type DonorDoc, type BloodBankDoc } from "../src/db/mongo.ts";
 import { BLOOD_GROUPS, type BloodGroup } from "../src/matching/compatibility.ts";
 import { DONATION_COOLDOWN_DAYS } from "../src/matching/eligibility.ts";
+import { knownLocalityNames, geocode } from "../src/intake/geocode.ts";
 
 // Approximate real-world blood type distribution (India-weighted).
 const BLOOD_GROUP_WEIGHTS: Record<BloodGroup, number> = {
@@ -35,9 +36,37 @@ function randomLastDonation(): Date | null {
   return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000);
 }
 
+// Blood banks sit only in the dense Mumbai-metro cluster, never in the far
+// cluster (Pune/Nashik) -- this is deliberate. It's the same gap the RakhtKhoj
+// pitch named: real blood banks are concentrated in cities, so a patient far
+// from one has no bank-based option at all, only the donor network.
+const FAR_LOCALITY_NAMES = new Set(["pune", "nashik"]);
+
+async function seedBloodBanks(db: Awaited<ReturnType<typeof getDb>>) {
+  const banks = db.collection<BloodBankDoc>("blood_banks");
+  await banks.deleteMany({ synthetic: true });
+
+  const docs: BloodBankDoc[] = knownLocalityNames()
+    .filter((name) => !FAR_LOCALITY_NAMES.has(name))
+    .map((name, i) => {
+      const coords = geocode(name)!;
+      return {
+        bankId: randomUUID(),
+        name: `${name[0].toUpperCase()}${name.slice(1)} Blood Bank`,
+        location: { type: "Point" as const, coordinates: coords },
+        phone: `+91-2${(20000000 + i).toString().padStart(8, "0")}`,
+        synthetic: true,
+      };
+    });
+
+  await banks.insertMany(docs);
+  console.log(`Seeded ${docs.length} synthetic blood banks (none in the far cluster, by design).`);
+}
+
 async function main() {
   const db = await getDb();
   await ensureIndexes(db);
+  await seedBloodBanks(db);
   const donors = db.collection<DonorDoc>("donors");
   await donors.deleteMany({ synthetic: true });
 

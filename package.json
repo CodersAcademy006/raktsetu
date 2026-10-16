@@ -6,7 +6,7 @@
   "scripts": {
     "api": "node --env-file=.env --import tsx src/api/server.ts",
     "worker": "node --env-file=.env --import tsx src/temporal/worker.ts",
-    "seed": "node --env-file=.env --import tsx scripts/seed-demo-donors.ts",
+    "seed": "node --env-file=.env --import tsx scripts/seed-demo-data.ts",
     "test": "node --import tsx --test test/*.test.ts"
   },
   "dependencies": {

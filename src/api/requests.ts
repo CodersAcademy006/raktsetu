@@ -6,18 +6,70 @@ import { parseEmergencyRequest } from "../intake/gemma-parser.ts";
 import { geocode } from "../intake/geocode.ts";
 import { getTemporalClient, TASK_QUEUE } from "./temporal-client.ts";
 import { EmergencyRequestWorkflow } from "../temporal/workflows.ts";
+import { BLOOD_GROUPS } from "../matching/compatibility.ts";
 
 export const requestsRouter = Router();
 
-const CreateRequestBody = z.object({
+const FreeTextBody = z.object({
   rawText: z.string().min(3),
   targetDonorAcceptances: z.number().int().min(1).optional(),
 });
 
+// The guided (MCQ) path: location comes from the browser's own geolocation,
+// not a parsed place name, and blood group/units/urgency come from button
+// answers, not free text -- so there's nothing here for Gemma to parse.
+const GuidedBody = z.object({
+  bloodGroup: z.enum(BLOOD_GROUPS),
+  units: z.number().int().min(1).max(10),
+  urgency: z.enum(["critical", "urgent", "routine"]),
+  targetDonorAcceptances: z.number().int().min(1).optional(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
+async function startRequest(doc: RequestDoc): Promise<void> {
+  const db = await getDb();
+  await db.collection<RequestDoc>("requests").insertOne(doc);
+
+  const client = await getTemporalClient();
+  const responseWindowMs = Number(process.env.RAKTSETU_RESPONSE_WINDOW_MS ?? 15_000);
+  await client.workflow.start(EmergencyRequestWorkflow, {
+    workflowId: doc.requestId,
+    taskQueue: TASK_QUEUE,
+    args: [doc.requestId, responseWindowMs],
+  });
+}
+
 requestsRouter.post("/requests", async (req, res) => {
-  const parsedBody = CreateRequestBody.safeParse(req.body);
+  const isGuided = "bloodGroup" in (req.body ?? {});
+
+  if (isGuided) {
+    const parsedBody = GuidedBody.safeParse(req.body);
+    if (!parsedBody.success) {
+      return res.status(400).json({ error: "invalid_body", details: parsedBody.error.flatten() });
+    }
+    const { bloodGroup, units, urgency, targetDonorAcceptances, lat, lng } = parsedBody.data;
+    const doc: RequestDoc = {
+      requestId: randomUUID(),
+      requiredBloodGroup: bloodGroup,
+      unitsRequested: units,
+      targetDonorAcceptances: targetDonorAcceptances ?? units,
+      location: { type: "Point", coordinates: [lng, lat] },
+      locationText: `${lat.toFixed(3)}, ${lng.toFixed(3)}`,
+      urgency,
+      status: "MATCHING",
+      currentRadiusKm: null,
+      acceptedDonorIds: [],
+      contactedDonorIds: [],
+      createdAt: new Date(),
+    };
+    await startRequest(doc);
+    return res.status(201).json(doc);
+  }
+
+  const parsedBody = FreeTextBody.safeParse(req.body);
   if (!parsedBody.success) {
-    return res.status(400).json({ error: "invalid body", details: parsedBody.error.flatten() });
+    return res.status(400).json({ error: "invalid_body", details: parsedBody.error.flatten() });
   }
 
   const parsed = await parseEmergencyRequest(parsedBody.data.rawText);
@@ -32,9 +84,8 @@ requestsRouter.post("/requests", async (req, res) => {
     return res.status(422).json({ error: "unknown_location", locationText: parsed.locationText });
   }
 
-  const requestId = randomUUID();
   const doc: RequestDoc = {
-    requestId,
+    requestId: randomUUID(),
     requiredBloodGroup: parsed.bloodGroup,
     unitsRequested: parsed.units,
     targetDonorAcceptances: parsedBody.data.targetDonorAcceptances ?? parsed.units,
@@ -48,17 +99,7 @@ requestsRouter.post("/requests", async (req, res) => {
     createdAt: new Date(),
   };
 
-  const db = await getDb();
-  await db.collection<RequestDoc>("requests").insertOne(doc);
-
-  const client = await getTemporalClient();
-  const responseWindowMs = Number(process.env.RAKTSETU_RESPONSE_WINDOW_MS ?? 15_000);
-  await client.workflow.start(EmergencyRequestWorkflow, {
-    workflowId: requestId,
-    taskQueue: TASK_QUEUE,
-    args: [requestId, responseWindowMs],
-  });
-
+  await startRequest(doc);
   res.status(201).json(doc);
 });
 

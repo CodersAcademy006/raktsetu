@@ -1,6 +1,14 @@
 import { MongoClient, type Db } from "mongodb";
 import type { BloodGroup } from "../matching/compatibility.ts";
 
+export interface BloodBankDoc {
+  bankId: string;
+  name: string;
+  location: { type: "Point"; coordinates: [number, number] };
+  phone: string;
+  synthetic: boolean;
+}
+
 export interface DonorDoc {
   donorId: string;
   name: string;
@@ -62,6 +70,8 @@ export async function getDb(): Promise<Db> {
 }
 
 export async function ensureIndexes(db: Db): Promise<void> {
+  await db.collection<BloodBankDoc>("blood_banks").createIndex({ location: "2dsphere" });
+  await db.collection<BloodBankDoc>("blood_banks").createIndex({ bankId: 1 }, { unique: true });
   await db.collection<DonorDoc>("donors").createIndex({ location: "2dsphere" });
   await db.collection<DonorDoc>("donors").createIndex({ donorId: 1 }, { unique: true });
   await db.collection<RequestDoc>("requests").createIndex({ requestId: 1 }, { unique: true });

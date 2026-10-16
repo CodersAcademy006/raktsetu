@@ -13,12 +13,46 @@
 </header>
 <main>
   <div>
+    <section class="card" id="location-card">
+      <h2>Step 1 — Location</h2>
+      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.85rem;">
+        Share the patient's location to see what's actually nearby before answering anything.
+      </p>
+      <button class="primary" id="locate-btn" type="button">Share my location</button>
+      <button id="demo-locate-btn" type="button" style="background:transparent;border:1px solid var(--line);color:var(--ink-dim);width:100%;margin-top:8px;">
+        Use demo location (Andheri, Mumbai) — seeded donor data lives here
+      </button>
+      <div id="location-status" class="sub" style="margin-top:8px;color:var(--ink-dim);font-size:0.8rem;"></div>
+    </section>
+
+    <section class="card" id="nearby-card" hidden>
+      <h2>Nearby, right now</h2>
+      <div id="nearby-summary"></div>
+    </section>
+
+    <section class="card" id="mcq-card" hidden>
+      <h2>Step 2 — A few quick questions</h2>
+      <form id="mcq-form">
+        <label>Blood group needed</label>
+        <div class="choice-row" id="bloodgroup-choices"></div>
+        <label>Units needed</label>
+        <div class="choice-row" id="units-choices"></div>
+        <label>Urgency</label>
+        <div class="choice-row" id="urgency-choices"></div>
+        <label for="mcq-target">Donors to recruit (optional — defaults to units needed)</label>
+        <input id="mcq-target" type="number" min="1" placeholder="auto" />
+        <button class="primary" type="submit" id="mcq-submit" disabled>Dispatch</button>
+      </form>
+    </section>
+
     <section class="card">
-      <h2>New Emergency Request</h2>
+      <h2>Or describe it yourself</h2>
+      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">
+        Free text, parsed by a local Gemma model — useful when the guided questions don't fit.
+      </p>
       <form id="request-form">
-        <label for="rawText">Describe the request (free text)</label>
         <textarea id="rawText" placeholder="O+ blood required, 2 units, Andheri, urgent accident case" required></textarea>
-        <label for="target">Donors to recruit (optional — defaults to units needed)</label>
+        <label for="target">Donors to recruit (optional)</label>
         <input id="target" type="number" min="1" placeholder="auto" />
         <button class="primary" type="submit">Dispatch</button>
       </form>

@@ -173,6 +173,45 @@ button:disabled { opacity: 0.45; cursor: default; transform: none; }
 
 .empty { color: var(--ink-dim); font-size: 0.85rem; padding: 8px 0; }
 
+.choice-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.chip {
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform 100ms ease-out, background 100ms ease-out, color 100ms ease-out;
+}
+.chip:active { transform: scale(0.96); }
+.chip.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+.nearby-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+}
+.nearby-row:last-child { border-bottom: none; }
+.nearby-row .sub { color: var(--ink-dim); font-size: 0.78rem; }
+.group-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  margin: 2px 4px 2px 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   button { transition: opacity 150ms ease; }
   button:active { transform: none; }
