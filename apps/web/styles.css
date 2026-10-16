@@ -1,35 +1,18 @@
 :root {
-  --bg: #f4f5f7;
-  --surface: rgba(255, 255, 255, 0.72);
-  --surface-solid: #ffffff;
-  --ink: #15171c;
-  --ink-dim: #5b5f6b;
-  --line: rgba(0, 0, 0, 0.08);
-  --accent: #c81e3a;
-  --accent-ink: #ffffff;
-  --ok: #1f8b4c;
-  --warn: #b7791f;
+  /* Cream, single light theme on purpose: calm and legible on ward screens. */
+  --bg: #f7f1e3;
+  --surface: rgba(255, 251, 242, 0.82);
+  --surface-solid: #fffbf2;
+  --ink: #3b3127;
+  --ink-dim: #7d6f5f;
+  --line: rgba(59, 49, 39, 0.12);
+  --accent: #8a6a3f;
+  --accent-ink: #fffbf2;
+  --ok: #5f7a4a;
+  --warn: #a8782f;
   --radius: 14px;
+  color-scheme: light;
   font: 100%/1.5 -apple-system, "SF Pro Text", system-ui, sans-serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #101114;
-    --surface: rgba(28, 29, 33, 0.72);
-    --surface-solid: #1c1d21;
-    --ink: #f2f2f4;
-    --ink-dim: #9a9ca3;
-    --line: rgba(255, 255, 255, 0.1);
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #101114;
-  --surface: rgba(28, 29, 33, 0.72);
-  --surface-solid: #1c1d21;
-  --ink: #f2f2f4;
-  --ink-dim: #9a9ca3;
-  --line: rgba(255, 255, 255, 0.1);
 }
 
 * { box-sizing: border-box; }
@@ -45,6 +28,7 @@ header {
   top: 0;
   z-index: 10;
   display: flex;
+  justify-content: center;
   align-items: baseline;
   gap: 10px;
   padding: 14px 20px;
@@ -64,9 +48,10 @@ header span {
 }
 
 .hero {
-  max-width: 1100px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 36px 20px 8px;
+  padding: 36px 16px 8px;
+  text-align: center;
 }
 .hero-eyebrow {
   font-size: 0.78rem;
@@ -82,18 +67,15 @@ header span {
   letter-spacing: -0.02em;
   line-height: 1.1;
   max-width: 20ch;
+  margin: 0 auto;
 }
 
 main {
-  max-width: 1100px;
+  max-width: 640px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 20px 16px 48px;
   display: grid;
-  grid-template-columns: 1fr;
   gap: 16px;
-}
-@media (min-width: 860px) {
-  main { grid-template-columns: 380px 1fr; align-items: start; }
 }
 
 .card {
@@ -247,7 +229,7 @@ button:disabled { opacity: 0.45; cursor: default; transform: none; }
   padding: 20px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 24px rgba(59, 49, 39, 0.12);
   touch-action: none;
   user-select: none;
   will-change: transform;
