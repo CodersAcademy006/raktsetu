@@ -22,6 +22,7 @@ export interface DonorDoc {
 }
 
 export type RequestStatus = "MATCHING" | "DISPATCHING" | "WAITING" | "FULFILLED" | "EXHAUSTED";
+export const TERMINAL_STATUSES: readonly RequestStatus[] = ["FULFILLED", "EXHAUSTED"];
 
 export interface RequestDoc {
   requestId: string;
@@ -49,6 +50,7 @@ export interface DispatchDoc {
   message: string;
   status: "sent" | "accepted" | "declined" | "expired";
   createdAt: Date;
+  respondedAt?: Date;
 }
 
 export interface WorkflowEventDoc {
@@ -78,6 +80,7 @@ export async function ensureIndexes(db: Db): Promise<void> {
   await db.collection<DonorDoc>("donors").createIndex({ donorId: 1 }, { unique: true });
   await db.collection<RequestDoc>("requests").createIndex({ requestId: 1 }, { unique: true });
   await db.collection<DispatchDoc>("dispatches").createIndex({ requestId: 1, donorId: 1 });
+  await db.collection<DispatchDoc>("dispatches").createIndex({ dispatchId: 1 }, { unique: true });
   await db.collection<WorkflowEventDoc>("workflow_events").createIndex({ requestId: 1, timestamp: 1 });
 }
 

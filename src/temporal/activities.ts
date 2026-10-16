@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { getDb, type DonorDoc, type RequestDoc, type WorkflowEventDoc } from "../db/mongo.ts";
+import { getDb, type DispatchDoc, type DonorDoc, type RequestDoc, type WorkflowEventDoc } from "../db/mongo.ts";
 import { compatibleDonorGroups } from "../matching/compatibility.ts";
 import { isEligibleToday } from "../matching/eligibility.ts";
 import { DemoWebProvider } from "../dispatch/demo-web-provider.ts";
@@ -85,5 +85,10 @@ export async function setRequestRadius(requestId: string, radiusKm: number): Pro
 export async function finalizeRequest(requestId: string, status: "FULFILLED" | "EXHAUSTED"): Promise<void> {
   const db = await getDb();
   await db.collection<RequestDoc>("requests").updateOne({ requestId }, { $set: { status } });
+  // Stand down everyone still pending: the donor page then shows "no longer needed".
+  const stoodDown = await db
+    .collection<DispatchDoc>("dispatches")
+    .updateMany({ requestId, status: "sent" }, { $set: { status: "expired" } });
+  if (stoodDown.modifiedCount > 0) await logEvent(requestId, "DONORS_STOOD_DOWN", { count: stoodDown.modifiedCount });
   await logEvent(requestId, status === "FULFILLED" ? "REQUEST_COMPLETED" : "REQUEST_EXHAUSTED", {});
 }

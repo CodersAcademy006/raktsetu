@@ -396,8 +396,8 @@ function render(request, dispatches, events, donorsById) {
               <div style="font-weight:600;margin-bottom:4px;">${esc(donor.name)} (${esc(donor.bloodGroup)})</div>
               <div style="margin-bottom:8px;">${esc(d.message)}</div>
               <div class="actions">
-                <button class="accept" data-donor="${esc(d.donorId)}" data-accept="true">Accept</button>
-                <button class="decline" data-donor="${esc(d.donorId)}" data-accept="false">Decline</button>
+                <button class="accept" data-dispatch="${esc(d.dispatchId)}" data-accept="true">Accept</button>
+                <button class="decline" data-dispatch="${esc(d.dispatchId)}" data-accept="false">Decline</button>
               </div>
             </div>`;
           })
@@ -406,10 +406,10 @@ function render(request, dispatches, events, donorsById) {
   document.querySelectorAll("#donor-list button").forEach((btn) => {
     btn.addEventListener("click", async () => {
       btn.closest(".bubble").querySelectorAll("button").forEach((b) => (b.disabled = true));
-      await api(`/requests/${activeRequestId}/respond`, {
+      await fetch(`/dispatches/${encodeURIComponent(btn.dataset.dispatch)}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ donorId: btn.dataset.donor, accepted: btn.dataset.accept === "true" }),
+        body: JSON.stringify({ accepted: btn.dataset.accept === "true" }),
       });
       poll();
     });

@@ -1,7 +1,7 @@
 import express, { type ErrorRequestHandler } from "express";
 import { getDb, ensureIndexes } from "../db/mongo.ts";
 import { requestsRouter } from "./requests.ts";
-import { demoRepliesRouter } from "./demo-replies.ts";
+import { repliesRouter } from "./replies.ts";
 import { nearbyRouter } from "./nearby.ts";
 import { requireAccessCode, rateLimit, securityHeaders } from "./guard.ts";
 
@@ -14,7 +14,7 @@ app.use(express.static(new URL("../../apps/web", import.meta.url).pathname));
 app.post("*", rateLimit(30));
 app.use(["/requests", "/nearby"], requireAccessCode);
 app.use(requestsRouter);
-app.use(demoRepliesRouter);
+app.use(repliesRouter);
 app.use(nearbyRouter);
 
 // Last-resort: a Mongo/Temporal/Gemma call anywhere above can fail (e.g. a
