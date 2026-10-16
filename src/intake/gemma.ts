@@ -2,7 +2,7 @@
 // container). Every caller has a deterministic fallback, so Gemma being slow
 // or down degrades wording, never dispatch.
 export async function gemmaChat(system: string, user: string, opts: { json?: boolean; timeoutMs?: number } = {}): Promise<string | null> {
-  const baseUrl = process.env.OLLAMA_URL ?? "http://localhost:11434";
+  const baseUrl = process.env.OLLAMA_URL ?? "http://127.0.0.1:11434";
   const model = process.env.GEMMA_MODEL ?? "gemma3:4b";
   try {
     const res = await fetch(`${baseUrl}/api/chat`, {

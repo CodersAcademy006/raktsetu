@@ -1,13 +1,19 @@
 import { Connection, Client } from "@temporalio/client";
+import { temporalConnectionOptions } from "../temporal/connection.ts";
 
-let client: Client | null = null;
+export { TASK_QUEUE } from "../temporal/connection.ts";
 
-export async function getTemporalClient(): Promise<Client> {
-  if (!client) {
-    const connection = await Connection.connect({ address: process.env.TEMPORAL_ADDRESS ?? "localhost:7233" });
-    client = new Client({ connection });
+let clientPromise: Promise<Client> | null = null;
+
+export function getTemporalClient(): Promise<Client> {
+  if (!clientPromise) {
+    const { namespace, ...conn } = temporalConnectionOptions();
+    clientPromise = Connection.connect(conn)
+      .then((connection) => new Client({ connection, namespace }))
+      .catch((err) => {
+        clientPromise = null; // retry on the next call instead of caching a failure
+        throw err;
+      });
   }
-  return client;
+  return clientPromise;
 }
-
-export const TASK_QUEUE = "raktsetu";
