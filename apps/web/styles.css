@@ -212,7 +212,40 @@ button:disabled { opacity: 0.45; cursor: default; transform: none; }
   margin: 2px 4px 2px 0;
 }
 
+.deck {
+  position: relative;
+  height: 280px;
+  margin-bottom: 4px;
+}
+.question-card {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  touch-action: none;
+  user-select: none;
+  will-change: transform;
+}
+.question-card .q-title {
+  font-size: 0.78rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 14px;
+}
+.question-card .choice-row { margin-top: auto; }
+.question-card:active { cursor: grabbing; }
+.question-card { cursor: grab; }
+.question-card .chip { pointer-events: auto; }
+
 @media (prefers-reduced-motion: reduce) {
   button { transition: opacity 150ms ease; }
   button:active { transform: none; }
+  .question-card { transition: opacity 180ms ease !important; touch-action: auto; cursor: default; }
 }

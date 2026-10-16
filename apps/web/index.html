@@ -32,17 +32,13 @@
 
     <section class="card" id="mcq-card" hidden>
       <h2>Step 2 — A few quick questions</h2>
-      <form id="mcq-form">
-        <label>Blood group needed</label>
-        <div class="choice-row" id="bloodgroup-choices"></div>
-        <label>Units needed</label>
-        <div class="choice-row" id="units-choices"></div>
-        <label>Urgency</label>
-        <div class="choice-row" id="urgency-choices"></div>
+      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">Tap an answer, or drag the card away.</p>
+      <div id="question-deck" class="deck"></div>
+      <div id="mcq-complete" hidden>
         <label for="mcq-target">Donors to recruit (optional — defaults to units needed)</label>
         <input id="mcq-target" type="number" min="1" placeholder="auto" />
-        <button class="primary" type="submit" id="mcq-submit" disabled>Dispatch</button>
-      </form>
+        <button class="primary" type="button" id="mcq-submit">Dispatch</button>
+      </div>
     </section>
 
     <section class="card">

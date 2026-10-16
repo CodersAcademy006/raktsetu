@@ -19,29 +19,116 @@ const timelineCard = document.getElementById("timeline-card");
 
 // --- Step 1: location + nearby preview -------------------------------------
 
-function renderChips(containerId, values, labelFor, answerKey) {
-  const container = document.getElementById(containerId);
-  container.innerHTML = values
-    .map((v) => `<button type="button" class="chip" data-value="${typeof v === "object" ? v.value : v}">${labelFor(v)}</button>`)
-    .join("");
-  container.querySelectorAll(".chip").forEach((chip) => {
+const QUESTIONS = [
+  { key: "bloodGroup", title: "Blood group needed", options: BLOOD_GROUPS.map((v) => ({ value: v, label: v })) },
+  { key: "units", title: "Units needed", options: UNIT_CHOICES.map((v) => ({ value: String(v), label: String(v) })) },
+  { key: "urgency", title: "Urgency", options: URGENCY_CHOICES },
+];
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// --- Tinder-style question deck ---------------------------------------------
+// Direct 1:1 drag tracking, velocity carried into the release so a fast flick
+// commits even on a short drag, a critically-damped spring-back when the
+// drag doesn't clear the threshold. See apple-design skill: response,
+// direct manipulation, momentum.
+
+let deckQueue = [];
+
+function initQuestionDeck() {
+  mcqAnswers.bloodGroup = null;
+  mcqAnswers.units = null;
+  mcqAnswers.urgency = null;
+  deckQueue = [...QUESTIONS];
+  document.getElementById("mcq-complete").hidden = true;
+  renderDeck();
+}
+
+function renderDeck() {
+  const deck = document.getElementById("question-deck");
+  deck.innerHTML = "";
+  deckQueue.slice(0, 3).forEach((q, depth) => {
+    const card = document.createElement("div");
+    card.className = "question-card";
+    card.style.transition = "transform 280ms cubic-bezier(0.2,0.8,0.2,1), opacity 280ms";
+    card.style.transform = `translateY(${depth * 14}px) scale(${1 - depth * 0.04})`;
+    card.style.opacity = depth === 2 ? "0.75" : depth === 1 ? "0.9" : "1";
+    card.style.zIndex = String(10 - depth);
+    card.style.pointerEvents = depth === 0 ? "auto" : "none";
+    card.innerHTML = `<div class="q-title">${q.title}</div><div class="choice-row">${q.options
+      .map((o) => `<button type="button" class="chip" data-value="${o.value}">${o.label}</button>`)
+      .join("")}</div>`;
+    deck.appendChild(card);
+    if (depth === 0) wireTopCard(card, q);
+  });
+  if (deckQueue.length === 0) {
+    document.getElementById("mcq-complete").hidden = false;
+  }
+}
+
+function wireTopCard(card, question) {
+  card.querySelectorAll(".chip").forEach((chip) => {
     chip.addEventListener("click", () => {
-      container.querySelectorAll(".chip").forEach((c) => c.classList.remove("selected"));
+      card.querySelectorAll(".chip").forEach((c) => c.classList.remove("selected"));
       chip.classList.add("selected");
-      mcqAnswers[answerKey] = chip.dataset.value;
-      updateMcqSubmitState();
+      mcqAnswers[question.key] = chip.dataset.value;
+      if (prefersReducedMotion) {
+        card.style.transition = "opacity 180ms ease";
+        card.style.opacity = "0";
+        setTimeout(advanceDeck, 180);
+      } else {
+        setTimeout(() => flingAway(card, 1, 900), 120);
+      }
     });
   });
+
+  if (prefersReducedMotion) return; // no drag gesture under reduced motion
+
+  let drag = null;
+  card.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".chip")) return;
+    card.setPointerCapture(e.pointerId);
+    card.style.transition = "none";
+    drag = { startX: e.clientX, lastX: e.clientX, lastT: performance.now(), dx: 0, vx: 0, pointerId: e.pointerId };
+  });
+  card.addEventListener("pointermove", (e) => {
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const now = performance.now();
+    const dt = Math.max(now - drag.lastT, 1);
+    drag.vx = ((e.clientX - drag.lastX) / dt) * 1000; // px/s
+    drag.lastX = e.clientX;
+    drag.lastT = now;
+    drag.dx = e.clientX - drag.startX;
+    card.style.transform = `translateX(${drag.dx}px) rotate(${drag.dx / 18}deg)`;
+  });
+  const release = (e) => {
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const { dx, vx } = drag;
+    drag = null;
+    const hasAnswer = !!mcqAnswers[question.key];
+    const commits = hasAnswer && (Math.abs(dx) > 110 || Math.abs(vx) > 600);
+    if (commits) {
+      flingAway(card, dx >= 0 ? 1 : -1, vx);
+    } else {
+      card.style.transition = "transform 280ms cubic-bezier(0.2,0.8,0.2,1)";
+      card.style.transform = "translateX(0) rotate(0)";
+    }
+  };
+  card.addEventListener("pointerup", release);
+  card.addEventListener("pointercancel", release);
 }
 
-function updateMcqSubmitState() {
-  const ready = mcqAnswers.bloodGroup && mcqAnswers.units && mcqAnswers.urgency;
-  document.getElementById("mcq-submit").disabled = !ready;
+function flingAway(card, direction, velocity) {
+  const duration = Math.max(160, Math.min(320, 60000 / Math.max(Math.abs(velocity), 400)));
+  card.style.transition = `transform ${duration}ms cubic-bezier(0.2,0.8,0.2,1), opacity ${duration}ms ease`;
+  card.style.transform = `translateX(${direction * 900}px) rotate(${direction * 24}deg)`;
+  card.style.opacity = "0";
+  setTimeout(advanceDeck, duration);
 }
 
-renderChips("bloodgroup-choices", BLOOD_GROUPS, (v) => v, "bloodGroup");
-renderChips("units-choices", UNIT_CHOICES, (v) => `${v}`, "units");
-renderChips("urgency-choices", URGENCY_CHOICES, (v) => v.label, "urgency");
+function advanceDeck() {
+  deckQueue.shift();
+  renderDeck();
+}
 
 document.getElementById("locate-btn").addEventListener("click", () => {
   const statusEl = document.getElementById("location-status");
@@ -54,8 +141,13 @@ document.getElementById("locate-btn").addEventListener("click", () => {
     async (pos) => {
       sharedLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
       statusEl.textContent = `Location shared (±${Math.round(pos.coords.accuracy)}m accuracy).`;
-      await loadNearby();
-      document.getElementById("mcq-card").hidden = false;
+      try {
+        await loadNearby();
+        document.getElementById("mcq-card").hidden = false;
+        initQuestionDeck();
+      } catch {
+        statusEl.textContent += " Couldn't reach the server for nearby data — try again in a moment.";
+      }
     },
     (err) => {
       statusEl.textContent = `Couldn't get your location (${err.message}). You can still use the free-text form below.`;
@@ -66,15 +158,21 @@ document.getElementById("locate-btn").addEventListener("click", () => {
 
 document.getElementById("demo-locate-btn").addEventListener("click", async () => {
   sharedLocation = { lat: 19.1197, lng: 72.8697 }; // Andheri, Mumbai -- matches the seeded demo data
-  document.getElementById("location-status").textContent = "Using demo location (Andheri, Mumbai).";
-  await loadNearby();
-  document.getElementById("mcq-card").hidden = false;
+  const statusEl = document.getElementById("location-status");
+  statusEl.textContent = "Using demo location (Andheri, Mumbai).";
+  try {
+    await loadNearby();
+    document.getElementById("mcq-card").hidden = false;
+    initQuestionDeck();
+  } catch {
+    statusEl.textContent += " Couldn't reach the server for nearby data — try again in a moment.";
+  }
 });
 
 async function loadNearby() {
   const { lat, lng } = sharedLocation;
   const res = await fetch(`/nearby?lat=${lat}&lng=${lng}`);
-  if (!res.ok) return;
+  if (!res.ok) throw new Error(`nearby fetch failed: ${res.status}`);
   const { searchedRadiusKm, bloodBanks, donorCountByGroup, totalDonors } = await res.json();
 
   const nearbyCard = document.getElementById("nearby-card");
@@ -102,9 +200,8 @@ async function loadNearby() {
     ${bankRows}`;
 }
 
-document.getElementById("mcq-form").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!sharedLocation) return;
+document.getElementById("mcq-submit").addEventListener("click", async () => {
+  if (!sharedLocation || !mcqAnswers.bloodGroup || !mcqAnswers.units || !mcqAnswers.urgency) return;
   const targetRaw = document.getElementById("mcq-target").value;
   const submitBtn = document.getElementById("mcq-submit");
   submitBtn.disabled = true;
