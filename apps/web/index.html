@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>RaktSetu — emergency donor dispatch</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header>
+  <h1>RaktSetu</h1>
+  <span>emergency donor dispatch console</span>
+</header>
+<main>
+  <div>
+    <section class="card">
+      <h2>New Emergency Request</h2>
+      <form id="request-form">
+        <label for="rawText">Describe the request (free text)</label>
+        <textarea id="rawText" placeholder="O+ blood required, 2 units, Andheri, urgent accident case" required></textarea>
+        <label for="target">Donors to recruit (optional — defaults to units needed)</label>
+        <input id="target" type="number" min="1" placeholder="auto" />
+        <button class="primary" type="submit">Dispatch</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Recent Requests</h2>
+      <div id="request-list" class="empty">None yet.</div>
+    </section>
+  </div>
+
+  <div>
+    <section class="card" id="status-card" hidden>
+      <h2>Hospital View</h2>
+      <div id="status-summary"></div>
+      <div id="dispatch-list"></div>
+    </section>
+
+    <section class="card" id="donor-card" hidden>
+      <h2>Donor Simulator <span style="font-weight:400;text-transform:none;letter-spacing:0;">— simulated WhatsApp replies, not real messages</span></h2>
+      <div id="donor-list"></div>
+    </section>
+
+    <section class="card" id="timeline-card" hidden>
+      <h2>Workflow Timeline</h2>
+      <ul id="timeline" class="timeline"></ul>
+    </section>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
