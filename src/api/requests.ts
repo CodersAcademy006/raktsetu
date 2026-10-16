@@ -140,7 +140,12 @@ requestsRouter.get("/requests/:id/state", asyncHandler(async (req, res) => {
 
   const donorIds = [...new Set(dispatches.map((d) => d.donorId))];
   const donors = await db.collection<DonorDoc>("donors").find({ donorId: { $in: donorIds } }).toArray();
-  const donorsById = Object.fromEntries(donors.map((d) => [d.donorId, { name: d.name, bloodGroup: d.bloodGroup }]));
+  // Staff only get a donor's phone once there is a reason to call: they said
+  // yes, or their free-text reply needs a confirmation call.
+  const callable = new Set(dispatches.filter((d) => d.status === "accepted" || d.replyNeedsCall).map((d) => d.donorId));
+  const donorsById = Object.fromEntries(
+    donors.map((d) => [d.donorId, { name: d.name, bloodGroup: d.bloodGroup, ...(callable.has(d.donorId) ? { phone: d.phone } : {}) }]),
+  );
 
   res.json({ request, dispatches, events, donorsById });
 }));

@@ -3,29 +3,33 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>RaktSetu — emergency donor dispatch</title>
+<title>RaktSetu dispatch console</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <header>
   <h1>RaktSetu</h1>
-  <span>emergency donor dispatch console</span>
+  <span>emergency blood dispatch</span>
 </header>
-<div class="hero">
-  <div class="hero-eyebrow">No login. No 10-field intake form.</div>
-  <div class="hero-line">Location, three questions, dispatch starts.</div>
-</div>
 <main>
-  <div>
-    <section class="card" id="access-card" hidden>
-      <h2>Access code</h2>
-      <form id="access-form">
-        <label for="access-code">This deployment needs the hospital access code.</label>
-        <input id="access-code" type="password" autocomplete="off" required />
-        <button class="primary" type="submit">Continue</button>
-      </form>
-    </section>
-    <section class="card" id="hospital-card">
+  <section class="card" id="access-card" hidden>
+    <h2>Access code</h2>
+    <form id="access-form">
+      <label for="access-code">This deployment needs the hospital access code.</label>
+      <input id="access-code" type="password" autocomplete="off" required />
+      <button class="primary" type="submit">Continue</button>
+    </form>
+  </section>
+
+  <section class="card" id="hospital-card">
+    <div id="hospital-summary" class="hospital-summary" hidden>
+      <div>
+        <div class="hospital-name" id="hospital-summary-name"></div>
+        <div class="sub" id="hospital-summary-sub"></div>
+      </div>
+      <button type="button" class="link" id="hospital-edit">Edit</button>
+    </div>
+    <form id="hospital-form">
       <h2>Your hospital</h2>
       <p class="sub">Saved on this device. Donors who accept see this, with a map link.</p>
       <label for="hospital-name">Hospital name</label>
@@ -34,72 +38,75 @@
       <input id="hospital-phone" type="tel" placeholder="+91 98xxxxxxxx" autocomplete="tel" required />
       <label for="hospital-requester">Your name or desk (optional)</label>
       <input id="hospital-requester" type="text" placeholder="e.g. Blood bank desk, Ward 3" autocomplete="off" />
-    </section>
+      <button class="primary" type="submit">Save</button>
+    </form>
+  </section>
 
-    <section class="card" id="location-card">
-      <h2>Step 1 — Location</h2>
-      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.85rem;">
-        Share the patient's location to see what's actually nearby before answering anything.
-      </p>
-      <button class="primary" id="locate-btn" type="button">Share my location</button>
-      <button id="demo-locate-btn" type="button" style="background:transparent;border:1px solid var(--line);color:var(--ink-dim);width:100%;margin-top:8px;">
-        Use demo location (Andheri, Mumbai) — seeded donor data lives here
-      </button>
-      <div id="location-status" class="sub" style="margin-top:8px;color:var(--ink-dim);font-size:0.8rem;"></div>
-    </section>
+  <section class="card" id="location-card">
+    <h2>1. Patient location</h2>
+    <p class="sub">Shows what's actually nearby before you answer anything.</p>
+    <button class="primary" id="locate-btn" type="button">Share my location</button>
+    <button class="secondary" id="demo-locate-btn" type="button">Use demo location (Andheri, Mumbai)</button>
+    <p id="location-status" class="sub status-line" role="status"></p>
+    <div id="nearby" hidden>
+      <div class="eyebrow" id="nearby-donors-title"></div>
+      <div id="nearby-pills" class="pill-row"></div>
+      <div class="eyebrow">Blood banks</div>
+      <div id="nearby-banks"></div>
+    </div>
+  </section>
 
-    <section class="card" id="nearby-card" hidden>
-      <h2>Nearby, right now</h2>
-      <div id="nearby-summary"></div>
-    </section>
+  <section class="card" id="mcq-card" hidden>
+    <h2>2. What is needed</h2>
+    <p class="sub">Tap an answer. Swipe a card left to go back.</p>
+    <div id="answer-chips" class="pill-row"></div>
+    <div id="question-deck" class="deck"></div>
+    <button type="button" class="link" id="deck-back" hidden>Back</button>
+    <div id="mcq-complete" hidden>
+      <div class="summary" id="mcq-summary"></div>
+      <label for="mcq-target">Donors to recruit (optional, defaults to units needed)</label>
+      <input id="mcq-target" type="number" min="1" max="20" placeholder="auto" />
+      <button class="primary" type="button" id="mcq-submit">Dispatch</button>
+      <p id="mcq-error" class="error" role="alert"></p>
+    </div>
+  </section>
 
-    <section class="card" id="mcq-card" hidden>
-      <h2>Step 2 — A few quick questions</h2>
-      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">Tap an answer, or drag the card away.</p>
-      <div id="question-deck" class="deck"></div>
-      <div id="mcq-complete" hidden>
-        <label for="mcq-target">Donors to recruit (optional — defaults to units needed)</label>
-        <input id="mcq-target" type="number" min="1" placeholder="auto" />
-        <button class="primary" type="button" id="mcq-submit">Dispatch</button>
-      </div>
-    </section>
+  <details class="card" id="freetext-card">
+    <summary>Describe it in words instead</summary>
+    <p class="sub">Parsed by a Gemma model. Anything not literally stated is sent back to you, never guessed.</p>
+    <form id="request-form">
+      <textarea id="rawText" placeholder="O+ blood required, 2 units, Andheri, urgent accident case" required></textarea>
+      <button class="primary" type="submit">Dispatch</button>
+      <p id="freetext-error" class="error" role="alert"></p>
+    </form>
+  </details>
 
-    <section class="card">
-      <h2>Or describe it yourself</h2>
-      <p class="sub" style="margin:0 0 10px;color:var(--ink-dim);font-size:0.8rem;">
-        Free text, parsed by a local Gemma model — useful when the guided questions don't fit.
-      </p>
-      <form id="request-form">
-        <textarea id="rawText" placeholder="O+ blood required, 2 units, Andheri, urgent accident case" required></textarea>
-        <label for="target">Donors to recruit (optional)</label>
-        <input id="target" type="number" min="1" placeholder="auto" />
-        <button class="primary" type="submit">Dispatch</button>
-      </form>
-    </section>
+  <section class="card" id="status-card" hidden>
+    <div class="status-head">
+      <h2>Live request</h2>
+      <span class="badge" id="status-badge"></span>
+    </div>
+    <div class="status-title" id="status-title"></div>
+    <div class="sub" id="status-sub"></div>
+    <div class="countdown" id="countdown" hidden></div>
+    <div id="status-sections"></div>
+  </section>
 
-    <section class="card">
-      <h2>Recent Requests</h2>
-      <div id="request-list" class="empty">None yet.</div>
-    </section>
-  </div>
+  <section class="card" id="donor-card" hidden>
+    <h2>Donor simulator</h2>
+    <p class="sub">Stands in for WhatsApp in this demo. Open a donor's page as they would, or answer for them.</p>
+    <div id="donor-list"></div>
+  </section>
 
-  <div>
-    <section class="card" id="status-card" hidden>
-      <h2>Hospital View</h2>
-      <div id="status-summary"></div>
-      <div id="dispatch-list"></div>
-    </section>
+  <section class="card" id="timeline-card" hidden>
+    <h2>Timeline</h2>
+    <ul id="timeline" class="timeline"></ul>
+  </section>
 
-    <section class="card" id="donor-card" hidden>
-      <h2>Donor Simulator <span style="font-weight:400;text-transform:none;letter-spacing:0;">— simulated WhatsApp replies, not real messages</span></h2>
-      <div id="donor-list"></div>
-    </section>
-
-    <section class="card" id="timeline-card" hidden>
-      <h2>Workflow Timeline</h2>
-      <ul id="timeline" class="timeline"></ul>
-    </section>
-  </div>
+  <section class="card">
+    <h2>Recent requests</h2>
+    <div id="request-list" class="empty">None yet.</div>
+  </section>
 </main>
 <script src="app.js"></script>
 </body>
