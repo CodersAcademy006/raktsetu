@@ -4,3 +4,4 @@ dist/
 *.log
 .atlas_dbuser.txt
 .temporal.db*
+POST.md
