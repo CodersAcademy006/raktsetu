@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="referrer" content="no-referrer" />
+<title>RaktSetu donor request</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="donor">
+<header><h1>RaktSetu</h1><span>blood donation request</span></header>
+<main>
+  <section class="card" id="donor-loading"><p class="sub">Loading your request…</p></section>
+
+  <section class="card" id="donor-request" hidden>
+    <p class="donor-hello" id="d-hello"></p>
+    <div class="donor-need" id="d-need"></div>
+    <dl class="donor-facts">
+      <dt>Units</dt><dd id="d-units"></dd>
+      <dt>Urgency</dt><dd id="d-urgency"></dd>
+      <dt>Where</dt><dd id="d-where"></dd>
+    </dl>
+    <div class="donor-links">
+      <a class="button-link" id="d-map" target="_blank" rel="noopener noreferrer">Open map</a>
+      <a class="button-link" id="d-call">Call hospital</a>
+    </div>
+  </section>
+
+  <section class="card" id="donor-actions" hidden>
+    <h2>Can you come today?</h2>
+    <div class="donor-buttons">
+      <button class="primary" id="d-accept" type="button">Yes, I'm coming</button>
+      <button class="secondary" id="d-decline" type="button">I can't make it</button>
+    </div>
+    <form id="d-text-form">
+      <label for="d-text">Or reply in your own words</label>
+      <textarea id="d-text" maxlength="500" placeholder="e.g. Can reach in 40 minutes / Had fever last week"></textarea>
+      <button class="secondary" type="submit">Send reply</button>
+    </form>
+  </section>
+
+  <section class="card" id="donor-result" hidden>
+    <h2 id="d-result-title"></h2>
+    <p class="sub" id="d-result-body"></p>
+  </section>
+</main>
+<script src="donor.js"></script>
+</body>
+</html>

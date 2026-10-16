@@ -253,3 +253,27 @@ button:disabled { opacity: 0.45; cursor: default; transform: none; }
   .question-card { transition: opacity 180ms ease !important; touch-action: auto; cursor: default; }
 }
 .card .sub { margin: 0 0 10px; color: var(--ink-dim); font-size: 0.85rem; }
+
+/* Shared controls used by the donor page and console. */
+button.secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); width: 100%; margin-top: 10px; }
+.button-link {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 44px; padding: 10px 16px; border-radius: 10px;
+  border: 1px solid var(--line); color: var(--ink); text-decoration: none; font-weight: 600; font-size: 0.9rem;
+  transition: transform 100ms ease-out;
+}
+.button-link:active { transform: scale(0.97); }
+.error { color: var(--warn); font-size: 0.85rem; margin: 0 0 8px; }
+
+/* Donor page */
+.donor main { max-width: 480px; }
+.donor-hello { margin: 0 0 12px; color: var(--ink-dim); }
+.donor-need { font-size: clamp(1.6rem, 7vw, 2rem); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 14px; }
+.donor-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 0 0 16px; font-size: 0.95rem; }
+.donor-facts dt { color: var(--ink-dim); }
+.donor-facts dd { margin: 0; font-weight: 600; }
+#d-urgency { text-transform: capitalize; }
+#donor-result h2 { text-transform: none; letter-spacing: -0.01em; font-size: 1.15rem; color: var(--ink); }
+.donor-links { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.donor-buttons button { min-height: 48px; font-size: 1rem; }
+#d-text-form { margin-top: 18px; }

@@ -126,9 +126,12 @@ export async function dispatchBatch(requestId: string, donorIds: string[], batch
 
   const facts = outreachFacts(request);
   const opener = await draftOpener(request);
+  const baseUrl = (process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? 3000}`).replace(/\/$/, "");
   for (const donor of donors) {
-    const text = `Hi ${donor.name},\n${opener.text}\n${facts}`;
-    await provider.send({ donor, request, batchNo, text });
+    const dispatchId = randomUUID();
+    // Link carries the dispatch id in the fragment, so it never reaches server logs or referrers.
+    const text = `Hi ${donor.name},\n${opener.text}\n${facts}\nReply: ${baseUrl}/donor.html#${dispatchId}`;
+    await provider.send({ dispatchId, donor, request, batchNo, text });
   }
 
   await db.collection<RequestDoc>("requests").updateOne(

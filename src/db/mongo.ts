@@ -72,6 +72,10 @@ export interface DispatchDoc {
   status: "sent" | "accepted" | "declined" | "expired";
   createdAt: Date;
   respondedAt?: Date;
+  replyText?: string; // donor's own words, when they replied in free text
+  replyNote?: string; // Gemma's short summary for staff
+  replyNeedsCall?: boolean; // reply was not a clear yes/no
+  etaMinutes?: number;
 }
 
 export interface WorkflowEventDoc {

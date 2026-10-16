@@ -44,7 +44,7 @@ async function startRequest(doc: RequestDoc): Promise<void> {
   await db.collection<RequestDoc>("requests").insertOne(doc);
 
   const client = await getTemporalClient();
-  const responseWindowMs = Number(process.env.RAKTSETU_RESPONSE_WINDOW_MS ?? 15_000);
+  const responseWindowMs = Number(process.env.RAKTSETU_RESPONSE_WINDOW_MS ?? 60_000);
   await client.workflow.start(EmergencyRequestWorkflow, {
     workflowId: doc.requestId,
     taskQueue: TASK_QUEUE,

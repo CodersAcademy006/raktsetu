@@ -8,10 +8,10 @@ const { reserveBankUnits, findCandidates, dispatchBatch, setRequestRadius, final
   retry: { maximumAttempts: 5 },
 });
 
-// Short for the demo so a full escalation run finishes in about a minute; a
+// Short for the demo so a full escalation run takes a few minutes; a
 // real deployment sets RAKTSETU_RESPONSE_WINDOW_MS (read by the API, since
 // workflow code has no Node globals) to the hospital's SLA, e.g. 10 minutes.
-const DEFAULT_RESPONSE_WINDOW_MS = 15_000;
+const DEFAULT_RESPONSE_WINDOW_MS = 60_000;
 
 export const donorResponseSignal = defineSignal<[{ donorId: string; accepted: boolean }]>("donorResponse");
 

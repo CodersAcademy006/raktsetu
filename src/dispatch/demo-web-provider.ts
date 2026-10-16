@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { getDb, type DispatchDoc } from "../db/mongo.ts";
 import type { DispatchMessage, NotificationProvider } from "./provider.ts";
 
@@ -13,7 +12,7 @@ export class DemoWebProvider implements NotificationProvider {
   async send(message: DispatchMessage): Promise<{ status: "sent" | "failed" }> {
     const db = await getDb();
     const doc: DispatchDoc = {
-      dispatchId: randomUUID(),
+      dispatchId: message.dispatchId,
       requestId: message.request.requestId,
       donorId: message.donor.donorId,
       batchNo: message.batchNo,
