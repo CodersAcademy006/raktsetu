@@ -51,7 +51,7 @@ async function reply(body, button) {
     const out = await res.json().catch(() => ({}));
     if (res.status === 409) return showResult(out.error === "request_closed" ? "expired" : out.status ?? "expired");
     if (!res.ok) throw new Error(out.error || res.status);
-    showResult(out.status, out.note);
+    showResult(out.status, out.status === "unclear" ? out.note : null); // the note is written for staff
   } catch {
     button.textContent = original;
     document.querySelectorAll("#donor-actions button").forEach((b) => (b.disabled = false));

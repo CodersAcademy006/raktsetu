@@ -111,7 +111,7 @@ requestsRouter.post("/requests", asyncHandler(async (req, res) => {
     unitsRequested: parsed.units,
     targetDonorAcceptances: parsedBody.data.targetDonorAcceptances ?? parsed.units,
     location: { type: "Point", coordinates: coords },
-    locationText: parsed.locationText,
+    locationText: parsed.locationText.replace(/\b\w/g, (c) => c.toUpperCase()),
     urgency: parsed.urgency,
     status: "MATCHING",
     currentRadiusKm: null,
